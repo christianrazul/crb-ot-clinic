@@ -27,6 +27,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { createSession, createRecurringSessions, ActionState } from "@/actions/sessions";
 import { roleLabels } from "@/lib/auth/permissions";
+import { formatTime12hr } from "@/lib/utils";
 
 interface Clinic {
   id: string;
@@ -60,10 +61,8 @@ interface CreateSessionDialogProps {
 const initialState: ActionState = {};
 
 const timeSlots = [
-  "08:00", "08:30", "09:00", "09:30", "10:00", "10:30",
-  "11:00", "11:30", "12:00", "12:30", "13:00", "13:30",
-  "14:00", "14:30", "15:00", "15:30", "16:00", "16:30",
-  "17:00", "17:30",
+  "08:00", "09:00", "10:00", "11:00", "12:00",
+  "13:00", "14:00", "15:00", "16:00", "17:00",
 ];
 
 const daysOfWeek = [
@@ -227,7 +226,7 @@ export function CreateSessionDialog({
                       <SelectContent>
                         {timeSlots.map((time) => (
                           <SelectItem key={time} value={time}>
-                            {time}
+                            {formatTime12hr(time)}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -344,7 +343,7 @@ export function CreateSessionDialog({
                       <SelectContent>
                         {timeSlots.map((time) => (
                           <SelectItem key={time} value={time}>
-                            {time}
+                            {formatTime12hr(time)}
                           </SelectItem>
                         ))}
                       </SelectContent>

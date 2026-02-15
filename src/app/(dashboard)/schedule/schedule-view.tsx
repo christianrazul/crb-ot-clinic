@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { cn } from "@/lib/utils";
+import { cn, formatTime12hr } from "@/lib/utils";
 import { roleLabels } from "@/lib/auth/permissions";
 
 interface Session {
@@ -161,8 +161,8 @@ export function ScheduleView({
               const timeSessions = sessionsByTime[time] || [];
               return (
                 <div key={time} className="flex gap-4">
-                  <div className="w-16 flex-shrink-0 text-sm font-medium text-muted-foreground pt-2">
-                    {time}
+                  <div className="w-20 flex-shrink-0 text-sm font-medium text-muted-foreground pt-2">
+                    {formatTime12hr(time)}
                   </div>
                   <div className="flex-1">
                     {timeSessions.length > 0 ? (
