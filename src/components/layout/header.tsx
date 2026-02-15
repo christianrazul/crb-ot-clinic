@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +17,7 @@ import { signOut } from "next-auth/react";
 import { UserRole } from "@prisma/client";
 
 export function Header() {
+  const pathname = usePathname();
   const { data: session } = useSession();
   const user = session?.user;
 
@@ -31,7 +33,7 @@ export function Header() {
     <header className="flex h-14 items-center justify-between border-b bg-background px-6">
       <div className="flex items-center gap-4">
         <h1 className="text-lg font-medium">
-          {getPageTitle()}
+          {getPageTitle(pathname)}
         </h1>
       </div>
 
@@ -66,10 +68,7 @@ export function Header() {
   );
 }
 
-function getPageTitle() {
-  if (typeof window === "undefined") return "";
-  const pathname = window.location.pathname;
-
+function getPageTitle(pathname: string) {
   const titles: Record<string, string> = {
     "/dashboard": "Dashboard",
     "/schedule": "Schedule",
