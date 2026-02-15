@@ -74,7 +74,7 @@ const navItems: NavItem[] = [
     permission: "view_reports",
   },
   {
-    title: "Admin",
+    title: "User Management",
     href: "/admin/users",
     icon: Settings,
     permission: "manage_users",
