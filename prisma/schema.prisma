@@ -1,0 +1,279 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum UserRole {
+  owner
+  secretary
+  licensed_ot
+  unlicensed_ot
+  st
+}
+
+enum ClientStatus {
+  active
+  inactive
+  discharged
+}
+
+enum SessionStatus {
+  scheduled
+  completed
+  cancelled
+  no_show
+}
+
+enum PaymentType {
+  per_session
+  package
+}
+
+enum PaymentMethod {
+  cash
+  gcash
+  bank_transfer
+}
+
+enum PaymentStatus {
+  completed
+  refunded
+}
+
+enum PackageStatus {
+  active
+  exhausted
+  expired
+  cancelled
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  VERIFY
+  LOGIN
+}
+
+model Clinic {
+  id            String   @id @default(cuid())
+  name          String
+  code          String   @unique
+  address       String?
+  contactNumber String?  @map("contact_number")
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  users        User[]
+  clients      Client[]
+  sessions     Session[]
+  sessionRates SessionRate[]
+  payments     Payment[]
+  auditLogs    AuditLog[]
+
+  @@map("clinics")
+}
+
+model User {
+  id             String   @id @default(cuid())
+  email          String   @unique
+  passwordHash   String   @map("password_hash")
+  firstName      String   @map("first_name")
+  lastName       String   @map("last_name")
+  role           UserRole
+  primaryClinic  Clinic?  @relation(fields: [primaryClinicId], references: [id])
+  primaryClinicId String? @map("primary_clinic_id")
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  primaryClients   Client[]          @relation("PrimaryTherapist")
+  backupClients    BackupTherapist[]
+  sessions         Session[]         @relation("Therapist")
+  verifiedSessions Session[]         @relation("Verifier")
+  cancelledSessions Session[]        @relation("Canceller")
+  auditLogs        AuditLog[]
+
+  @@map("users")
+}
+
+model Client {
+  id               String       @id @default(cuid())
+  mainClinic       Clinic       @relation(fields: [mainClinicId], references: [id])
+  mainClinicId     String       @map("main_clinic_id")
+  firstName        String       @map("first_name")
+  lastName         String       @map("last_name")
+  dateOfBirth      DateTime?    @map("date_of_birth")
+  diagnosis        String?
+  guardianName     String       @map("guardian_name")
+  guardianPhone    String?      @map("guardian_phone")
+  guardianEmail    String?      @map("guardian_email")
+  guardianRelation String?      @map("guardian_relation")
+  primaryTherapist User?        @relation("PrimaryTherapist", fields: [primaryTherapistId], references: [id])
+  primaryTherapistId String?    @map("primary_therapist_id")
+  status           ClientStatus @default(active)
+  enrollmentDate   DateTime     @default(now()) @map("enrollment_date")
+  dischargeDate    DateTime?    @map("discharge_date")
+  notes            String?
+  createdAt        DateTime     @default(now()) @map("created_at")
+  updatedAt        DateTime     @updatedAt @map("updated_at")
+
+  backupTherapists BackupTherapist[]
+  sessions         Session[]
+  clientPackages   ClientPackage[]
+  payments         Payment[]
+
+  @@map("clients")
+}
+
+model BackupTherapist {
+  id          String @id @default(cuid())
+  client      Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientId    String @map("client_id")
+  therapist   User   @relation(fields: [therapistId], references: [id])
+  therapistId String @map("therapist_id")
+  priority    Int    @default(1)
+
+  @@unique([clientId, therapistId])
+  @@map("backup_therapists")
+}
+
+model Session {
+  id               String        @id @default(cuid())
+  clinic           Clinic        @relation(fields: [clinicId], references: [id])
+  clinicId         String        @map("clinic_id")
+  client           Client        @relation(fields: [clientId], references: [id])
+  clientId         String        @map("client_id")
+  therapist        User          @relation("Therapist", fields: [therapistId], references: [id])
+  therapistId      String        @map("therapist_id")
+  scheduledDate    DateTime      @map("scheduled_date")
+  scheduledTime    String        @map("scheduled_time")
+  durationMinutes  Int           @default(60) @map("duration_minutes")
+  status           SessionStatus @default(scheduled)
+  sessionNotes     String?       @map("session_notes")
+  debriefNotes     String?       @map("debrief_notes")
+  verifiedAt       DateTime?     @map("verified_at")
+  verifiedBy       User?         @relation("Verifier", fields: [verifiedById], references: [id])
+  verifiedById     String?       @map("verified_by")
+  cancelledAt      DateTime?     @map("cancelled_at")
+  cancelledBy      User?         @relation("Canceller", fields: [cancelledById], references: [id])
+  cancelledById    String?       @map("cancelled_by")
+  cancellationReason String?     @map("cancellation_reason")
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
+
+  paymentSessions PaymentSession[]
+
+  @@map("sessions")
+}
+
+model SessionRate {
+  id            String   @id @default(cuid())
+  clinic        Clinic   @relation(fields: [clinicId], references: [id])
+  clinicId      String   @map("clinic_id")
+  therapistType UserRole @map("therapist_type")
+  ratePerSession Decimal @map("rate_per_session") @db.Decimal(10, 2)
+  effectiveFrom DateTime @map("effective_from")
+  effectiveTo   DateTime? @map("effective_to")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@map("session_rates")
+}
+
+model Package {
+  id              String  @id @default(cuid())
+  name            String
+  sessionCount    Int     @map("session_count")
+  basePrice       Decimal @map("base_price") @db.Decimal(10, 2)
+  discountPercent Decimal @default(5) @map("discount_percent") @db.Decimal(5, 2)
+  finalPrice      Decimal @map("final_price") @db.Decimal(10, 2)
+  validityDays    Int     @default(30) @map("validity_days")
+  isActive        Boolean @default(true) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  clientPackages ClientPackage[]
+
+  @@map("packages")
+}
+
+model ClientPackage {
+  id              String        @id @default(cuid())
+  client          Client        @relation(fields: [clientId], references: [id])
+  clientId        String        @map("client_id")
+  package         Package       @relation(fields: [packageId], references: [id])
+  packageId       String        @map("package_id")
+  purchaseDate    DateTime      @default(now()) @map("purchase_date")
+  expiryDate      DateTime      @map("expiry_date")
+  sessionsTotal   Int           @map("sessions_total")
+  sessionsUsed    Int           @default(0) @map("sessions_used")
+  status          PackageStatus @default(active)
+  amountPaid      Decimal       @map("amount_paid") @db.Decimal(10, 2)
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  payments Payment[]
+
+  @@map("client_packages")
+}
+
+model Payment {
+  id              String        @id @default(cuid())
+  clinic          Clinic        @relation(fields: [clinicId], references: [id])
+  clinicId        String        @map("clinic_id")
+  client          Client        @relation(fields: [clientId], references: [id])
+  clientId        String        @map("client_id")
+  paymentType     PaymentType   @map("payment_type")
+  amount          Decimal       @db.Decimal(10, 2)
+  paymentMethod   PaymentMethod @map("payment_method")
+  clientPackage   ClientPackage? @relation(fields: [clientPackageId], references: [id])
+  clientPackageId String?       @map("client_package_id")
+  receiptNumber   String?       @unique @map("receipt_number")
+  status          PaymentStatus @default(completed)
+  paymentDate     DateTime      @default(now()) @map("payment_date")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  paymentSessions PaymentSession[]
+
+  @@map("payments")
+}
+
+model PaymentSession {
+  id        String  @id @default(cuid())
+  payment   Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  paymentId String  @map("payment_id")
+  session   Session @relation(fields: [sessionId], references: [id])
+  sessionId String  @map("session_id")
+  amount    Decimal @db.Decimal(10, 2)
+
+  @@unique([paymentId, sessionId])
+  @@map("payment_sessions")
+}
+
+model AuditLog {
+  id          String      @id @default(cuid())
+  user        User?       @relation(fields: [userId], references: [id])
+  userId      String?     @map("user_id")
+  userEmail   String      @map("user_email")
+  userRole    UserRole    @map("user_role")
+  action      AuditAction
+  entityType  String      @map("entity_type")
+  entityId    String      @map("entity_id")
+  oldValues   Json?       @map("old_values")
+  newValues   Json?       @map("new_values")
+  description String?
+  ipAddress   String?     @map("ip_address")
+  clinic      Clinic?     @relation(fields: [clinicId], references: [id])
+  clinicId    String?     @map("clinic_id")
+  createdAt   DateTime    @default(now()) @map("created_at")
+
+  @@map("audit_logs")
+}
