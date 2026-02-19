@@ -89,8 +89,9 @@ export async function getSession(id: string) {
     where: { id },
     include: {
       clinic: { select: { id: true, name: true, code: true } },
-      client: { select: { id: true, firstName: true, lastName: true } },
+      client: { select: { id: true, firstName: true, lastName: true, diagnosis: true, guardianName: true, guardianPhone: true } },
       therapist: { select: { id: true, firstName: true, lastName: true, role: true } },
+      startedBy: { select: { id: true, firstName: true, lastName: true } },
       verifiedBy: { select: { id: true, firstName: true, lastName: true } },
       cancelledBy: { select: { id: true, firstName: true, lastName: true } },
     },
@@ -265,7 +266,7 @@ export async function cancelSession(
   reason: string
 ): Promise<ActionState> {
   const session = await auth();
-  if (!session?.user || !hasPermission(session.user.role, "manage_sessions")) {
+  if (!session?.user) {
     return { error: "Unauthorized" };
   }
 
@@ -275,6 +276,18 @@ export async function cancelSession(
 
   if (!existingSession) {
     return { error: "Session not found" };
+  }
+
+  const isTherapistUser = isTherapist(session.user.role);
+  const isOwnSession = existingSession.therapistId === session.user.id;
+  const canManage = hasPermission(session.user.role, "manage_sessions");
+
+  if (isTherapistUser && !isOwnSession) {
+    return { error: "You can only cancel your own sessions" };
+  }
+
+  if (!isTherapistUser && !canManage) {
+    return { error: "Unauthorized" };
   }
 
   if (existingSession.status !== SessionStatus.scheduled) {
@@ -292,6 +305,7 @@ export async function cancelSession(
   });
 
   revalidatePath("/schedule");
+  revalidatePath("/my-schedule");
   revalidatePath("/sessions");
   return { success: true };
 }
@@ -321,4 +335,141 @@ export async function getClientsForScheduling(clinicId?: string) {
   });
 
   return clients;
+}
+
+export async function startSession(sessionId: string): Promise<ActionState> {
+  const session = await auth();
+  if (!session?.user) {
+    return { error: "Unauthorized" };
+  }
+
+  const existingSession = await db.session.findUnique({
+    where: { id: sessionId },
+  });
+
+  if (!existingSession) {
+    return { error: "Session not found" };
+  }
+
+  const isTherapistUser = isTherapist(session.user.role);
+  const isOwnSession = existingSession.therapistId === session.user.id;
+  const canManage = hasPermission(session.user.role, "manage_sessions");
+
+  if (isTherapistUser && !isOwnSession) {
+    return { error: "You can only start your own sessions" };
+  }
+
+  if (!isTherapistUser && !canManage) {
+    return { error: "Unauthorized" };
+  }
+
+  if (existingSession.status !== SessionStatus.scheduled) {
+    return { error: "Only scheduled sessions can be started" };
+  }
+
+  await db.session.update({
+    where: { id: sessionId },
+    data: {
+      status: SessionStatus.in_progress,
+      startedAt: new Date(),
+      startedById: session.user.id,
+    },
+  });
+
+  revalidatePath("/schedule");
+  revalidatePath("/my-schedule");
+  revalidatePath("/sessions");
+  revalidatePath("/confirmations");
+  return { success: true };
+}
+
+export async function confirmSessionStart(sessionId: string): Promise<ActionState> {
+  const session = await auth();
+  if (!session?.user || !hasPermission(session.user.role, "verify_sessions")) {
+    return { error: "Unauthorized" };
+  }
+
+  const existingSession = await db.session.findUnique({
+    where: { id: sessionId },
+  });
+
+  if (!existingSession) {
+    return { error: "Session not found" };
+  }
+
+  if (existingSession.status !== SessionStatus.in_progress) {
+    return { error: "Session must be in progress to confirm" };
+  }
+
+  if (!existingSession.startedAt) {
+    return { error: "Session has not been started" };
+  }
+
+  if (existingSession.verifiedAt) {
+    return { error: "Session has already been confirmed" };
+  }
+
+  await db.session.update({
+    where: { id: sessionId },
+    data: {
+      verifiedAt: new Date(),
+      verifiedById: session.user.id,
+    },
+  });
+
+  revalidatePath("/schedule");
+  revalidatePath("/my-schedule");
+  revalidatePath("/sessions");
+  revalidatePath("/confirmations");
+  revalidatePath("/dashboard");
+  return { success: true };
+}
+
+export async function getPendingConfirmations(clinicId?: string) {
+  const session = await auth();
+  if (!session?.user || !hasPermission(session.user.role, "verify_sessions")) {
+    return { error: "Unauthorized" };
+  }
+
+  const sessions = await db.session.findMany({
+    where: {
+      status: SessionStatus.in_progress,
+      startedAt: { not: null },
+      verifiedAt: null,
+      ...(clinicId && { clinicId }),
+      ...(session.user.primaryClinicId && !clinicId && {
+        clinicId: session.user.primaryClinicId,
+      }),
+    },
+    include: {
+      clinic: { select: { id: true, name: true, code: true } },
+      client: { select: { id: true, firstName: true, lastName: true } },
+      therapist: { select: { id: true, firstName: true, lastName: true, role: true } },
+      startedBy: { select: { id: true, firstName: true, lastName: true } },
+    },
+    orderBy: { startedAt: "asc" },
+  });
+
+  return { data: sessions };
+}
+
+export async function getPendingConfirmationsCount(clinicId?: string) {
+  const session = await auth();
+  if (!session?.user || !hasPermission(session.user.role, "verify_sessions")) {
+    return 0;
+  }
+
+  const count = await db.session.count({
+    where: {
+      status: SessionStatus.in_progress,
+      startedAt: { not: null },
+      verifiedAt: null,
+      ...(clinicId && { clinicId }),
+      ...(session.user.primaryClinicId && !clinicId && {
+        clinicId: session.user.primaryClinicId,
+      }),
+    },
+  });
+
+  return count;
 }

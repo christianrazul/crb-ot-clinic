@@ -10,6 +10,7 @@ export type Permission =
   | "view_own_sessions"
   | "log_session_notes"
   | "verify_sessions"
+  | "manage_attendance"
   | "manage_payments"
   | "collect_payments"
   | "view_payments"
@@ -30,6 +31,7 @@ const rolePermissions: Record<UserRole, Permission[]> = {
     "view_own_sessions",
     "log_session_notes",
     "verify_sessions",
+    "manage_attendance",
     "manage_payments",
     "collect_payments",
     "view_payments",
@@ -45,6 +47,7 @@ const rolePermissions: Record<UserRole, Permission[]> = {
     "manage_sessions",
     "view_all_sessions",
     "verify_sessions",
+    "manage_attendance",
     "collect_payments",
     "view_payments",
   ],

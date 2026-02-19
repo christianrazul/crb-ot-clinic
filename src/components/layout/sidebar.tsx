@@ -12,15 +12,18 @@ import {
   Settings,
   LogOut,
   CalendarDays,
+  CheckCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
 import { hasPermission, isTherapist } from "@/lib/auth/permissions";
 import { signOut } from "next-auth/react";
 
 interface SidebarProps {
   userRole: string;
+  pendingConfirmationsCount?: number;
 }
 
 interface NavItem {
@@ -48,6 +51,18 @@ const navItems: NavItem[] = [
     href: "/schedule",
     icon: Calendar,
     permission: "view_all_sessions",
+  },
+  {
+    title: "Confirmations",
+    href: "/confirmations",
+    icon: CheckCircle,
+    permission: "verify_sessions",
+  },
+  {
+    title: "Attendance",
+    href: "/attendance",
+    icon: ClipboardList,
+    permission: "manage_attendance",
   },
   {
     title: "Clients",
@@ -81,7 +96,7 @@ const navItems: NavItem[] = [
   },
 ];
 
-export function Sidebar({ userRole }: SidebarProps) {
+export function Sidebar({ userRole, pendingConfirmationsCount = 0 }: SidebarProps) {
   const pathname = usePathname();
 
   const filteredNavItems = navItems.filter((item) => {
@@ -105,6 +120,7 @@ export function Sidebar({ userRole }: SidebarProps) {
         <nav className="grid gap-1 px-2">
           {filteredNavItems.map((item) => {
             const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
+            const showBadge = item.href === "/confirmations" && pendingConfirmationsCount > 0;
             return (
               <Link key={item.href} href={item.href}>
                 <Button
@@ -116,6 +132,11 @@ export function Sidebar({ userRole }: SidebarProps) {
                 >
                   <item.icon className="h-4 w-4" />
                   {item.title}
+                  {showBadge && (
+                    <Badge variant="destructive" className="ml-auto h-5 px-1.5 text-xs">
+                      {pendingConfirmationsCount}
+                    </Badge>
+                  )}
                 </Button>
               </Link>
             );

@@ -24,6 +24,7 @@ enum ClientStatus {
 
 enum SessionStatus {
   scheduled
+  in_progress
   completed
   cancelled
   no_show
@@ -70,12 +71,13 @@ model Clinic {
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
-  users        User[]
-  clients      Client[]
-  sessions     Session[]
-  sessionRates SessionRate[]
-  payments     Payment[]
-  auditLogs    AuditLog[]
+  users          User[]
+  clients        Client[]
+  sessions       Session[]
+  sessionRates   SessionRate[]
+  payments       Payment[]
+  auditLogs      AuditLog[]
+  attendanceLogs AttendanceLog[]
 
   @@map("clinics")
 }
@@ -93,12 +95,15 @@ model User {
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
-  primaryClients   Client[]          @relation("PrimaryTherapist")
-  backupClients    BackupTherapist[]
-  sessions         Session[]         @relation("Therapist")
-  verifiedSessions Session[]         @relation("Verifier")
-  cancelledSessions Session[]        @relation("Canceller")
-  auditLogs        AuditLog[]
+  primaryClients       Client[]          @relation("PrimaryTherapist")
+  backupClients        BackupTherapist[]
+  sessions             Session[]         @relation("Therapist")
+  startedSessions      Session[]         @relation("SessionStarter")
+  verifiedSessions     Session[]         @relation("Verifier")
+  cancelledSessions    Session[]         @relation("Canceller")
+  auditLogs            AuditLog[]
+  attendanceAsTherapist AttendanceLog[]  @relation("AttendanceTherapist")
+  attendanceLogged     AttendanceLog[]   @relation("AttendanceLogger")
 
   @@map("users")
 }
@@ -128,6 +133,7 @@ model Client {
   sessions         Session[]
   clientPackages   ClientPackage[]
   payments         Payment[]
+  attendanceLogs   AttendanceLog[]
 
   @@map("clients")
 }
@@ -158,6 +164,9 @@ model Session {
   status           SessionStatus @default(scheduled)
   sessionNotes     String?       @map("session_notes")
   debriefNotes     String?       @map("debrief_notes")
+  startedAt        DateTime?     @map("started_at")
+  startedBy        User?         @relation("SessionStarter", fields: [startedById], references: [id])
+  startedById      String?       @map("started_by_id")
   verifiedAt       DateTime?     @map("verified_at")
   verifiedBy       User?         @relation("Verifier", fields: [verifiedById], references: [id])
   verifiedById     String?       @map("verified_by")
@@ -276,4 +285,27 @@ model AuditLog {
   createdAt   DateTime    @default(now()) @map("created_at")
 
   @@map("audit_logs")
+}
+
+model AttendanceLog {
+  id                 String   @id @default(cuid())
+  clinic             Clinic   @relation(fields: [clinicId], references: [id])
+  clinicId           String   @map("clinic_id")
+  client             Client   @relation(fields: [clientId], references: [id])
+  clientId           String   @map("client_id")
+  guardianName       String   @map("guardian_name")
+  guardianRelation   String?  @map("guardian_relation")
+  primaryTherapist   User?    @relation("AttendanceTherapist", fields: [primaryTherapistId], references: [id])
+  primaryTherapistId String?  @map("primary_therapist_id")
+  loggedAt           DateTime @default(now()) @map("logged_at")
+  loggedBy           User     @relation("AttendanceLogger", fields: [loggedById], references: [id])
+  loggedById         String   @map("logged_by_id")
+  notes              String?
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  @@index([clinicId])
+  @@index([clientId])
+  @@index([loggedAt])
+  @@map("attendance_logs")
 }

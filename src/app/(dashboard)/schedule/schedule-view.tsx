@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { SessionStatus, UserRole } from "@prisma/client";
 import { format, addDays, subDays } from "date-fns";
@@ -18,11 +19,15 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn, formatTime12hr } from "@/lib/utils";
 import { roleLabels } from "@/lib/auth/permissions";
+import { SessionDetailsDialog, SessionWithDetails } from "@/components/sessions/session-details-dialog";
 
 interface Session {
   id: string;
+  scheduledDate?: Date;
   scheduledTime: string;
+  durationMinutes?: number;
   status: SessionStatus;
+  startedAt?: Date | null;
   clinic: { id: string; name: string; code: string };
   client: { id: string; firstName: string; lastName: string };
   therapist: { id: string; firstName: string; lastName: string; role: UserRole };
@@ -39,10 +44,13 @@ interface ScheduleViewProps {
   clinics: Clinic[];
   selectedDate: Date;
   selectedClinic?: string;
+  currentUserId: string;
+  currentUserRole: UserRole | string;
 }
 
 const statusColors: Record<SessionStatus, string> = {
   scheduled: "bg-blue-100 border-blue-300 text-blue-800",
+  in_progress: "bg-purple-100 border-purple-300 text-purple-800",
   completed: "bg-green-100 border-green-300 text-green-800",
   cancelled: "bg-red-100 border-red-300 text-red-800",
   no_show: "bg-yellow-100 border-yellow-300 text-yellow-800",
@@ -58,9 +66,29 @@ export function ScheduleView({
   clinics,
   selectedDate,
   selectedClinic,
+  currentUserId,
+  currentUserRole,
 }: ScheduleViewProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [selectedSession, setSelectedSession] = useState<SessionWithDetails | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+
+  function handleSessionClick(session: Session) {
+    const sessionWithDetails: SessionWithDetails = {
+      id: session.id,
+      scheduledDate: session.scheduledDate || selectedDate,
+      scheduledTime: session.scheduledTime,
+      durationMinutes: session.durationMinutes || 60,
+      status: session.status,
+      startedAt: session.startedAt || null,
+      clinic: session.clinic,
+      client: session.client,
+      therapist: session.therapist,
+    };
+    setSelectedSession(sessionWithDetails);
+    setDialogOpen(true);
+  }
 
   function navigateToDate(date: Date) {
     const params = new URLSearchParams(searchParams.toString());
@@ -171,9 +199,10 @@ export function ScheduleView({
                           <div
                             key={s.id}
                             className={cn(
-                              "rounded-lg border p-3",
+                              "rounded-lg border p-3 cursor-pointer transition-shadow hover:shadow-md",
                               statusColors[s.status]
                             )}
+                            onClick={() => handleSessionClick(s)}
                           >
                             <div className="flex items-center justify-between">
                               <span className="font-medium">
@@ -210,6 +239,14 @@ export function ScheduleView({
           No sessions scheduled for this day
         </div>
       )}
+
+      <SessionDetailsDialog
+        session={selectedSession}
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        currentUserId={currentUserId}
+        currentUserRole={currentUserRole}
+      />
     </div>
   );
 }

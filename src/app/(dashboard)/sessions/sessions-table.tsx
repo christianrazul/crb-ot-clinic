@@ -22,18 +22,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 import { roleLabels } from "@/lib/auth/permissions";
-import { cancelSession } from "@/actions/sessions";
+import { CancelSessionDialog } from "@/components/sessions/cancel-session-dialog";
 
 interface Session {
   id: string;
@@ -61,9 +51,18 @@ interface SessionsTableProps {
 
 const statusColors: Record<SessionStatus, "default" | "secondary" | "destructive" | "outline"> = {
   scheduled: "default",
+  in_progress: "default",
   completed: "secondary",
   cancelled: "destructive",
   no_show: "outline",
+};
+
+const statusLabels: Record<SessionStatus, string> = {
+  scheduled: "Scheduled",
+  in_progress: "In Progress",
+  completed: "Completed",
+  cancelled: "Cancelled",
+  no_show: "No Show",
 };
 
 export function SessionsTable({
@@ -76,9 +75,7 @@ export function SessionsTable({
   const router = useRouter();
   const searchParams = useSearchParams();
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
-  const [sessionToCancel, setSessionToCancel] = useState<string | null>(null);
-  const [cancelReason, setCancelReason] = useState("");
-  const [isCancelling, setIsCancelling] = useState(false);
+  const [sessionToCancel, setSessionToCancel] = useState<Session | null>(null);
 
   function navigateToMonth(date: Date) {
     const params = new URLSearchParams(searchParams.toString());
@@ -114,20 +111,14 @@ export function SessionsTable({
     navigateToMonth(addMonths(selectedDate, 1));
   }
 
-  function openCancelDialog(sessionId: string) {
-    setSessionToCancel(sessionId);
-    setCancelReason("");
+  function openCancelDialog(session: Session) {
+    setSessionToCancel(session);
     setCancelDialogOpen(true);
   }
 
-  async function handleCancel() {
-    if (!sessionToCancel || !cancelReason.trim()) return;
-    setIsCancelling(true);
-    await cancelSession(sessionToCancel, cancelReason);
-    setIsCancelling(false);
+  function handleCancelComplete() {
     setCancelDialogOpen(false);
     setSessionToCancel(null);
-    setCancelReason("");
   }
 
   const filteredSessions = sessions.filter((s) => {
@@ -230,7 +221,7 @@ export function SessionsTable({
                   </TableCell>
                   <TableCell>
                     <Badge variant={statusColors[session.status]}>
-                      {session.status}
+                      {statusLabels[session.status]}
                     </Badge>
                   </TableCell>
                   <TableCell>
@@ -238,7 +229,7 @@ export function SessionsTable({
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => openCancelDialog(session.id)}
+                        onClick={() => openCancelDialog(session)}
                       >
                         <X className="h-4 w-4 text-destructive" />
                       </Button>
@@ -255,40 +246,15 @@ export function SessionsTable({
         Showing {filteredSessions.length} of {sessions.length} sessions
       </div>
 
-      <Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Cancel Session</DialogTitle>
-            <DialogDescription>
-              Please provide a reason for cancelling this session.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="cancelReason">Cancellation Reason</Label>
-              <Textarea
-                id="cancelReason"
-                value={cancelReason}
-                onChange={(e) => setCancelReason(e.target.value)}
-                placeholder="Enter the reason for cancellation..."
-                rows={3}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCancelDialogOpen(false)}>
-              Keep Session
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleCancel}
-              disabled={!cancelReason.trim() || isCancelling}
-            >
-              {isCancelling ? "Cancelling..." : "Cancel Session"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {sessionToCancel && (
+        <CancelSessionDialog
+          sessionId={sessionToCancel.id}
+          clientName={`${sessionToCancel.client.firstName} ${sessionToCancel.client.lastName}`}
+          open={cancelDialogOpen}
+          onOpenChange={setCancelDialogOpen}
+          onComplete={handleCancelComplete}
+        />
+      )}
     </div>
   );
 }

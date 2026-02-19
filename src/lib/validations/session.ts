@@ -20,5 +20,15 @@ export const createRecurringSessionSchema = z.object({
   durationMinutes: z.number().int().min(15).max(180).default(60),
 });
 
+export const startSessionSchema = z.object({
+  sessionId: z.string().min(1, "Session ID is required"),
+});
+
+export const confirmSessionSchema = z.object({
+  sessionId: z.string().min(1, "Session ID is required"),
+});
+
 export type CreateSessionInput = z.infer<typeof createSessionSchema>;
 export type CreateRecurringSessionInput = z.infer<typeof createRecurringSessionSchema>;
+export type StartSessionInput = z.infer<typeof startSessionSchema>;
+export type ConfirmSessionInput = z.infer<typeof confirmSessionSchema>;

@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { hasPermission, isTherapist } from "@/lib/auth/permissions";
 import { format } from "date-fns";
 import { Calendar, Users, ClipboardList, DollarSign } from "lucide-react";
+import { PendingConfirmationsCard } from "@/components/dashboard/pending-confirmations-card";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -19,7 +20,9 @@ export default async function DashboardPage() {
   const canViewAll = hasPermission(user.role, "view_all_sessions");
   const isTherapistUser = isTherapist(user.role);
 
-  const [todaySessions, activeClients, pendingVerification] = await Promise.all([
+  const canVerify = hasPermission(user.role, "verify_sessions");
+
+  const [todaySessions, activeClients, pendingConfirmations] = await Promise.all([
     db.session.count({
       where: {
         scheduledDate: {
@@ -39,15 +42,23 @@ export default async function DashboardPage() {
           },
         })
       : 0,
-    canViewAll
-      ? db.session.count({
+    canVerify
+      ? db.session.findMany({
           where: {
-            status: "completed",
+            status: "in_progress",
+            startedAt: { not: null },
             verifiedAt: null,
             ...(user.primaryClinicId && { clinicId: user.primaryClinicId }),
           },
+          include: {
+            clinic: { select: { id: true, name: true, code: true } },
+            client: { select: { id: true, firstName: true, lastName: true } },
+            therapist: { select: { id: true, firstName: true, lastName: true, role: true } },
+            startedBy: { select: { id: true, firstName: true, lastName: true } },
+          },
+          orderBy: { startedAt: "asc" },
         })
-      : 0,
+      : [],
   ]);
 
   return (
@@ -97,14 +108,14 @@ export default async function DashboardPage() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
-                  Pending Verification
+                  Pending Confirmations
                 </CardTitle>
                 <ClipboardList className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{pendingVerification}</div>
+                <div className="text-2xl font-bold">{pendingConfirmations.length}</div>
                 <p className="text-xs text-muted-foreground">
-                  sessions to verify
+                  sessions to confirm
                 </p>
               </CardContent>
             </Card>
@@ -128,6 +139,10 @@ export default async function DashboardPage() {
           </Card>
         )}
       </div>
+
+      {canVerify && pendingConfirmations.length > 0 && (
+        <PendingConfirmationsCard sessions={pendingConfirmations} />
+      )}
 
       {isTherapistUser && (
         <Card>

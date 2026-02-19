@@ -41,6 +41,8 @@ export default async function MySchedulePage({ searchParams }: PageProps) {
         selectedDate={selectedDate}
         weekStart={weekStart}
         weekEnd={weekEnd}
+        currentUserId={session.user.id}
+        currentUserRole={session.user.role}
       />
     </div>
   );

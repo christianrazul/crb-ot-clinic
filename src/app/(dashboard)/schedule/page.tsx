@@ -56,6 +56,8 @@ export default async function SchedulePage({ searchParams }: PageProps) {
         clinics={clinics}
         selectedDate={selectedDate}
         selectedClinic={selectedClinic}
+        currentUserId={session.user.id}
+        currentUserRole={session.user.role}
       />
     </div>
   );
