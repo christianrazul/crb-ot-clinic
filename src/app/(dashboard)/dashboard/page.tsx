@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth/auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { db } from "@/lib/db";
 import { hasPermission, isTherapist } from "@/lib/auth/permissions";
+import { getDailyRevenue } from "@/actions/payments";
 import { format } from "date-fns";
 import { Calendar, Users, ClipboardList, DollarSign } from "lucide-react";
 import { PendingConfirmationsCard } from "@/components/dashboard/pending-confirmations-card";
@@ -22,7 +23,9 @@ export default async function DashboardPage() {
 
   const canVerify = hasPermission(user.role, "verify_sessions");
 
-  const [todaySessions, activeClients, pendingConfirmations] = await Promise.all([
+  const canViewFinancials = hasPermission(user.role, "view_financial_reports");
+
+  const [todaySessions, activeClients, pendingConfirmations, dailyRevenueResult] = await Promise.all([
     db.session.count({
       where: {
         scheduledDate: {
@@ -59,7 +62,17 @@ export default async function DashboardPage() {
           orderBy: { startedAt: "asc" },
         })
       : [],
+    canViewFinancials ? getDailyRevenue(new Date()) : { data: 0 },
   ]);
+
+  const dailyRevenue = dailyRevenueResult.data || 0;
+
+  function formatCurrency(amount: number): string {
+    return new Intl.NumberFormat("en-PH", {
+      style: "currency",
+      currency: "PHP",
+    }).format(amount);
+  }
 
   return (
     <div className="space-y-6">
@@ -122,7 +135,7 @@ export default async function DashboardPage() {
           </>
         )}
 
-        {hasPermission(user.role, "view_financial_reports") && (
+        {canViewFinancials && (
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
@@ -131,9 +144,9 @@ export default async function DashboardPage() {
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">--</div>
+              <div className="text-2xl font-bold">{formatCurrency(dailyRevenue)}</div>
               <p className="text-xs text-muted-foreground">
-                will show after Phase 3
+                collected today
               </p>
             </CardContent>
           </Card>

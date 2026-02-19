@@ -4,9 +4,10 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth/auth";
 import { hasPermission, canAccessClinic, isTherapist } from "@/lib/auth/permissions";
-import { createSessionSchema, createRecurringSessionSchema } from "@/lib/validations/session";
-import { addWeeks, startOfDay, endOfDay, addDays, parseISO } from "date-fns";
-import { SessionStatus } from "@prisma/client";
+import { createSessionSchema, createMultipleSessionsSchema } from "@/lib/validations/session";
+import { createAuditLog } from "@/lib/audit";
+import { startOfDay, endOfDay, parseISO } from "date-fns";
+import { SessionStatus, PaymentStatus, CreditType, PaymentMethod, PaymentSource } from "@prisma/client";
 
 export type ActionState = {
   error?: string;
@@ -161,22 +162,122 @@ export async function createSession(
     return { error: "Therapist already has a session at this time" };
   }
 
-  await db.session.create({
-    data: {
-      clinicId: parsed.data.clinicId,
-      clientId: parsed.data.clientId,
-      therapistId: parsed.data.therapistId,
-      scheduledDate,
-      scheduledTime: parsed.data.scheduledTime,
-      durationMinutes: parsed.data.durationMinutes,
-    },
+  const includePayment = formData.get("includePayment") === "true";
+  const advancePaymentId = formData.get("advancePaymentId") as string;
+
+  const result = await db.$transaction(async (tx) => {
+    const newSession = await tx.session.create({
+      data: {
+        clinicId: parsed.data.clinicId,
+        clientId: parsed.data.clientId,
+        therapistId: parsed.data.therapistId,
+        scheduledDate,
+        scheduledTime: parsed.data.scheduledTime,
+        durationMinutes: parsed.data.durationMinutes,
+      },
+    });
+
+    if (includePayment && hasPermission(session.user.role, "collect_payments")) {
+      if (advancePaymentId) {
+        const existingPayment = await tx.payment.findUnique({
+          where: { id: advancePaymentId },
+          include: {
+            _count: { select: { paymentSessions: true } },
+          },
+        });
+
+        if (existingPayment) {
+          const sessionsRemaining =
+            existingPayment.sessionsPaid - existingPayment._count.paymentSessions;
+          if (sessionsRemaining > 0) {
+            const perSessionAmount =
+              Number(existingPayment.amount) / existingPayment.sessionsPaid;
+            await tx.paymentSession.create({
+              data: {
+                paymentId: advancePaymentId,
+                sessionId: newSession.id,
+                amount: perSessionAmount,
+              },
+            });
+          }
+        }
+      } else {
+        const amount = parseFloat(formData.get("amount") as string) || 0;
+        const paymentMethod = (formData.get("paymentMethod") as string) || "cash";
+        const paymentSource = (formData.get("paymentSource") as string) || "client";
+        const creditType = (formData.get("creditType") as string) || "regular";
+        const sessionsPaid = parseInt(formData.get("sessionsPaid") as string) || 1;
+        const receiptNumber = formData.get("receiptNumber") as string;
+        const paymentNotes = formData.get("paymentNotes") as string;
+
+        if (amount > 0 || creditType === "no_payment") {
+          if (receiptNumber) {
+            const existingReceipt = await tx.payment.findUnique({
+              where: { receiptNumber },
+            });
+            if (existingReceipt) {
+              throw new Error("Receipt number already exists");
+            }
+          }
+
+          const payment = await tx.payment.create({
+            data: {
+              clinicId: parsed.data.clinicId,
+              clientId: parsed.data.clientId,
+              paymentType: "per_session",
+              amount,
+              paymentMethod: paymentMethod as PaymentMethod,
+              paymentSource: paymentSource as PaymentSource,
+              creditType: creditType as CreditType,
+              sessionsPaid,
+              recordedById: session.user.id,
+              receiptNumber: receiptNumber || null,
+              notes: paymentNotes || null,
+              status: PaymentStatus.completed,
+            },
+          });
+
+          const perSessionAmount = sessionsPaid > 0 ? amount / sessionsPaid : amount;
+          await tx.paymentSession.create({
+            data: {
+              paymentId: payment.id,
+              sessionId: newSession.id,
+              amount: perSessionAmount,
+            },
+          });
+
+          await createAuditLog({
+            userId: session.user.id,
+            userEmail: session.user.email!,
+            userRole: session.user.role,
+            action: "CREATE",
+            entityType: "Payment",
+            entityId: payment.id,
+            newValues: {
+              amount,
+              paymentMethod,
+              paymentSource,
+              creditType,
+              sessionsPaid,
+              sessionId: newSession.id,
+            },
+            description: `Recorded payment of ${amount} for session`,
+            clinicId: parsed.data.clinicId,
+          });
+        }
+      }
+    }
+
+    return newSession;
   });
 
   revalidatePath("/schedule");
-  return { success: true };
+  revalidatePath("/payments");
+  revalidatePath("/dashboard");
+  return { success: true, data: result };
 }
 
-export async function createRecurringSessions(
+export async function createMultipleSessions(
   _prevState: ActionState,
   formData: FormData
 ): Promise<ActionState> {
@@ -185,18 +286,19 @@ export async function createRecurringSessions(
     return { error: "Unauthorized" };
   }
 
+  const selectedDatesRaw = formData.get("selectedDates") as string;
+  const selectedDates = selectedDatesRaw ? JSON.parse(selectedDatesRaw) : [];
+
   const rawData = {
     clinicId: formData.get("clinicId"),
     clientId: formData.get("clientId"),
     therapistId: formData.get("therapistId"),
     scheduledTime: formData.get("scheduledTime"),
-    dayOfWeek: parseInt(formData.get("dayOfWeek") as string),
-    startDate: formData.get("startDate"),
-    endDate: formData.get("endDate"),
+    selectedDates,
     durationMinutes: parseInt(formData.get("durationMinutes") as string) || 60,
   };
 
-  const parsed = createRecurringSessionSchema.safeParse(rawData);
+  const parsed = createMultipleSessionsSchema.safeParse(rawData);
   if (!parsed.success) {
     return { error: parsed.error.issues[0].message };
   }
@@ -208,9 +310,6 @@ export async function createRecurringSessions(
     return { error: "You can only create sessions for your assigned clinic" };
   }
 
-  const startDate = parseISO(parsed.data.startDate);
-  const endDate = parseISO(parsed.data.endDate);
-
   const sessionsToCreate: Array<{
     clinicId: string;
     clientId: string;
@@ -220,45 +319,123 @@ export async function createRecurringSessions(
     durationMinutes: number;
   }> = [];
 
-  let currentDate = startDate;
-  while (currentDate.getDay() !== parsed.data.dayOfWeek) {
-    currentDate = addDays(currentDate, 1);
-  }
+  const skippedDates: string[] = [];
 
-  while (currentDate <= endDate) {
+  for (const dateStr of parsed.data.selectedDates) {
+    const scheduledDate = parseISO(dateStr);
+
     const existingSession = await db.session.findFirst({
       where: {
         therapistId: parsed.data.therapistId,
-        scheduledDate: currentDate,
+        scheduledDate,
         scheduledTime: parsed.data.scheduledTime,
         status: { in: ["scheduled", "completed"] },
       },
     });
 
-    if (!existingSession) {
+    if (existingSession) {
+      skippedDates.push(dateStr);
+    } else {
       sessionsToCreate.push({
         clinicId: parsed.data.clinicId,
         clientId: parsed.data.clientId,
         therapistId: parsed.data.therapistId,
-        scheduledDate: currentDate,
+        scheduledDate,
         scheduledTime: parsed.data.scheduledTime,
         durationMinutes: parsed.data.durationMinutes,
       });
     }
-
-    currentDate = addWeeks(currentDate, 1);
   }
 
   if (sessionsToCreate.length === 0) {
-    return { error: "No sessions could be created - all slots are already booked" };
+    return { error: "No sessions could be created - all selected slots are already booked" };
   }
 
-  await db.session.createMany({
-    data: sessionsToCreate,
+  const includePayment = formData.get("includePayment") === "true";
+
+  const result = await db.$transaction(async (tx) => {
+    const createdSessions = await Promise.all(
+      sessionsToCreate.map((sessionData) =>
+        tx.session.create({ data: sessionData })
+      )
+    );
+
+    if (includePayment && hasPermission(session.user.role, "collect_payments")) {
+      const amount = parseFloat(formData.get("amount") as string) || 0;
+      const paymentMethod = (formData.get("paymentMethod") as string) || "cash";
+      const paymentSource = (formData.get("paymentSource") as string) || "client";
+      const creditType = (formData.get("creditType") as string) || "advance";
+      const receiptNumber = formData.get("receiptNumber") as string;
+      const paymentNotes = formData.get("paymentNotes") as string;
+
+      if (amount > 0 || creditType === "no_payment") {
+        if (receiptNumber) {
+          const existingReceipt = await tx.payment.findUnique({
+            where: { receiptNumber },
+          });
+          if (existingReceipt) {
+            throw new Error("Receipt number already exists");
+          }
+        }
+
+        const payment = await tx.payment.create({
+          data: {
+            clinicId: parsed.data.clinicId,
+            clientId: parsed.data.clientId,
+            paymentType: "per_session",
+            amount,
+            paymentMethod: paymentMethod as PaymentMethod,
+            paymentSource: paymentSource as PaymentSource,
+            creditType: creditType as CreditType,
+            sessionsPaid: createdSessions.length,
+            recordedById: session.user.id,
+            receiptNumber: receiptNumber || null,
+            notes: paymentNotes || null,
+            status: PaymentStatus.completed,
+          },
+        });
+
+        const perSessionAmount = createdSessions.length > 0 ? amount / createdSessions.length : 0;
+        await Promise.all(
+          createdSessions.map((createdSession) =>
+            tx.paymentSession.create({
+              data: {
+                paymentId: payment.id,
+                sessionId: createdSession.id,
+                amount: perSessionAmount,
+              },
+            })
+          )
+        );
+
+        await createAuditLog({
+          userId: session.user.id,
+          userEmail: session.user.email!,
+          userRole: session.user.role,
+          action: "CREATE",
+          entityType: "Payment",
+          entityId: payment.id,
+          newValues: {
+            amount,
+            paymentMethod,
+            paymentSource,
+            creditType,
+            sessionsPaid: createdSessions.length,
+            sessionIds: createdSessions.map((s) => s.id),
+          },
+          description: `Recorded advance payment of ${amount} for ${createdSessions.length} sessions`,
+          clinicId: parsed.data.clinicId,
+        });
+      }
+    }
+
+    return { count: createdSessions.length, skippedDates };
   });
 
   revalidatePath("/schedule");
-  return { success: true, data: { count: sessionsToCreate.length } };
+  revalidatePath("/payments");
+  revalidatePath("/dashboard");
+  return { success: true, data: result };
 }
 
 export async function cancelSession(

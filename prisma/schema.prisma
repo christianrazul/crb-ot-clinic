@@ -39,6 +39,20 @@ enum PaymentMethod {
   cash
   gcash
   bank_transfer
+  none
+}
+
+enum PaymentSource {
+  client
+  dswd
+  cswdo
+  other_govt
+}
+
+enum CreditType {
+  regular
+  advance
+  no_payment
 }
 
 enum PaymentStatus {
@@ -104,6 +118,7 @@ model User {
   auditLogs            AuditLog[]
   attendanceAsTherapist AttendanceLog[]  @relation("AttendanceTherapist")
   attendanceLogged     AttendanceLog[]   @relation("AttendanceLogger")
+  recordedPayments     Payment[]         @relation("RecordedPayments")
 
   @@map("users")
 }
@@ -242,9 +257,15 @@ model Payment {
   paymentType     PaymentType   @map("payment_type")
   amount          Decimal       @db.Decimal(10, 2)
   paymentMethod   PaymentMethod @map("payment_method")
+  paymentSource   PaymentSource @default(client) @map("payment_source")
+  creditType      CreditType    @default(regular) @map("credit_type")
+  sessionsPaid    Int           @default(1) @map("sessions_paid")
   clientPackage   ClientPackage? @relation(fields: [clientPackageId], references: [id])
   clientPackageId String?       @map("client_package_id")
+  recordedBy      User?         @relation("RecordedPayments", fields: [recordedById], references: [id])
+  recordedById    String?       @map("recorded_by_id")
   receiptNumber   String?       @unique @map("receipt_number")
+  notes           String?
   status          PaymentStatus @default(completed)
   paymentDate     DateTime      @default(now()) @map("payment_date")
   createdAt       DateTime      @default(now()) @map("created_at")

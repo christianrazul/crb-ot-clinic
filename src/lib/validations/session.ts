@@ -9,14 +9,12 @@ export const createSessionSchema = z.object({
   durationMinutes: z.number().int().min(15).max(180).default(60),
 });
 
-export const createRecurringSessionSchema = z.object({
+export const createMultipleSessionsSchema = z.object({
   clinicId: z.string().min(1, "Clinic is required"),
   clientId: z.string().min(1, "Client is required"),
   therapistId: z.string().min(1, "Therapist is required"),
   scheduledTime: z.string().min(1, "Time is required"),
-  dayOfWeek: z.number().int().min(0).max(6),
-  startDate: z.string().min(1, "Start date is required"),
-  endDate: z.string().min(1, "End date is required"),
+  selectedDates: z.array(z.string()).min(1, "At least one date must be selected"),
   durationMinutes: z.number().int().min(15).max(180).default(60),
 });
 
@@ -29,6 +27,6 @@ export const confirmSessionSchema = z.object({
 });
 
 export type CreateSessionInput = z.infer<typeof createSessionSchema>;
-export type CreateRecurringSessionInput = z.infer<typeof createRecurringSessionSchema>;
+export type CreateMultipleSessionsInput = z.infer<typeof createMultipleSessionsSchema>;
 export type StartSessionInput = z.infer<typeof startSessionSchema>;
 export type ConfirmSessionInput = z.infer<typeof confirmSessionSchema>;
