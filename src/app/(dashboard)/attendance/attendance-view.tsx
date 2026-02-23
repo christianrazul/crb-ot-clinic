@@ -42,9 +42,10 @@ interface AttendanceLog {
   loggedAt: Date;
   loggedById: string;
   notes: string | null;
+  paymentStatus: "UNPAID" | "PAID";
   clinic: { id: string; name: string; code: string };
   client: { id: string; firstName: string; lastName: string };
-  primaryTherapist: { id: string; firstName: string; lastName: string } | null;
+  primaryTherapist: { id: string; firstName: string; lastName: string; role?: string } | null;
   loggedBy: { id: string; firstName: string; lastName: string };
 }
 

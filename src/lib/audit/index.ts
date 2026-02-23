@@ -1,6 +1,11 @@
 import { db } from "@/lib/db";
-import { AuditAction, UserRole, Prisma } from "@prisma/client";
+import { AuditAction, UserRole, Prisma, PrismaClient } from "@prisma/client";
 import { headers } from "next/headers";
+
+export type TransactionClient = Omit<
+  PrismaClient,
+  "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends"
+>;
 
 export interface AuditLogParams {
   userId: string | null;
@@ -15,7 +20,10 @@ export interface AuditLogParams {
   clinicId?: string | null;
 }
 
-export async function createAuditLog(params: AuditLogParams): Promise<void> {
+export async function createAuditLog(
+  params: AuditLogParams,
+  client: TransactionClient = db
+): Promise<void> {
   let ipAddress: string | null = null;
 
   try {
@@ -28,7 +36,7 @@ export async function createAuditLog(params: AuditLogParams): Promise<void> {
     // Headers not available in some contexts
   }
 
-  await db.auditLog.create({
+  await client.auditLog.create({
     data: {
       userId: params.userId,
       userEmail: params.userEmail,
