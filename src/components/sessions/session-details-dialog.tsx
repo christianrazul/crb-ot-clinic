@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { SessionStatus, UserRole } from "@prisma/client";
+import { SessionStatus, UserRole, SessionType } from "@prisma/client";
 import { format } from "date-fns";
 import { Clock, MapPin, User, Calendar, Phone, Stethoscope } from "lucide-react";
 import {
@@ -33,6 +33,7 @@ export interface SessionWithDetails {
   scheduledDate: Date;
   scheduledTime: string;
   durationMinutes: number;
+  sessionType: SessionType;
   status: SessionStatus;
   startedAt: Date | null;
   clinic: { id: string; name: string; code: string };
@@ -69,6 +70,18 @@ const statusLabels: Record<SessionStatus, string> = {
   completed: "Completed",
   cancelled: "Cancelled",
   no_show: "No Show",
+};
+
+const sessionTypeLabels: Record<SessionType, string> = {
+  regular: "Regular Session",
+  ot_evaluation: "OT Evaluation",
+  make_up: "Make Up Session",
+};
+
+const sessionTypeColors: Record<SessionType, string> = {
+  regular: "bg-gray-100 text-gray-800 border-gray-300",
+  ot_evaluation: "bg-orange-100 text-orange-800 border-orange-300",
+  make_up: "bg-teal-100 text-teal-800 border-teal-300",
 };
 
 export function SessionDetailsDialog({
@@ -112,9 +125,16 @@ export function SessionDetailsDialog({
           <DialogHeader>
             <DialogTitle className="flex items-center justify-between">
               <span>Session Details</span>
-              <Badge className={statusColors[session.status]}>
-                {statusLabels[session.status]}
-              </Badge>
+              <div className="flex items-center gap-2">
+                {session.sessionType !== "regular" && (
+                  <Badge className={sessionTypeColors[session.sessionType]}>
+                    {sessionTypeLabels[session.sessionType]}
+                  </Badge>
+                )}
+                <Badge className={statusColors[session.status]}>
+                  {statusLabels[session.status]}
+                </Badge>
+              </div>
             </DialogTitle>
           </DialogHeader>
 

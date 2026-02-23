@@ -30,6 +30,12 @@ enum SessionStatus {
   no_show
 }
 
+enum SessionType {
+  regular
+  ot_evaluation
+  make_up
+}
+
 enum PaymentType {
   per_session
   package
@@ -181,6 +187,7 @@ model Session {
   scheduledDate    DateTime      @map("scheduled_date")
   scheduledTime    String        @map("scheduled_time")
   durationMinutes  Int           @default(60) @map("duration_minutes")
+  sessionType      SessionType   @default(regular) @map("session_type")
   status           SessionStatus @default(scheduled)
   sessionNotes     String?       @map("session_notes")
   debriefNotes     String?       @map("debrief_notes")

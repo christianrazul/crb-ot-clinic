@@ -2,8 +2,13 @@
 
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+<<<<<<< Updated upstream
 import { SessionStatus, UserRole } from "@prisma/client";
 import { format, addDays, subDays } from "date-fns";
+=======
+import { SessionStatus, UserRole, SessionType } from "@prisma/client";
+import { format, addDays, subDays, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay } from "date-fns";
+>>>>>>> Stashed changes
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,6 +23,7 @@ interface Session {
   scheduledDate?: Date;
   scheduledTime: string;
   durationMinutes?: number;
+  sessionType?: SessionType;
   status: SessionStatus;
   startedAt?: Date | null;
   clinic: { id: string; name: string; code: string };
@@ -62,6 +68,7 @@ export function MyScheduleView({
       scheduledDate: session.scheduledDate || selectedDate,
       scheduledTime: session.scheduledTime,
       durationMinutes: session.durationMinutes || 60,
+      sessionType: session.sessionType || "regular",
       status: session.status,
       startedAt: session.startedAt || null,
       clinic: session.clinic,

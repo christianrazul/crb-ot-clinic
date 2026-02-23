@@ -133,6 +133,7 @@ export async function createSession(
     scheduledDate: formData.get("scheduledDate"),
     scheduledTime: formData.get("scheduledTime"),
     durationMinutes: parseInt(formData.get("durationMinutes") as string) || 60,
+    sessionType: formData.get("sessionType") || "regular",
   };
 
   const parsed = createSessionSchema.safeParse(rawData);
@@ -174,6 +175,7 @@ export async function createSession(
         scheduledDate,
         scheduledTime: parsed.data.scheduledTime,
         durationMinutes: parsed.data.durationMinutes,
+        sessionType: parsed.data.sessionType,
       },
     });
 
@@ -252,6 +254,7 @@ export async function createMultipleSessions(
     scheduledTime: formData.get("scheduledTime"),
     selectedDates,
     durationMinutes: parseInt(formData.get("durationMinutes") as string) || 60,
+    sessionType: formData.get("sessionType") || "regular",
   };
 
   const parsed = createMultipleSessionsSchema.safeParse(rawData);
@@ -273,6 +276,7 @@ export async function createMultipleSessions(
     scheduledDate: Date;
     scheduledTime: string;
     durationMinutes: number;
+    sessionType: "regular" | "ot_evaluation" | "make_up";
   }> = [];
 
   const skippedDates: string[] = [];
@@ -299,6 +303,7 @@ export async function createMultipleSessions(
         scheduledDate,
         scheduledTime: parsed.data.scheduledTime,
         durationMinutes: parsed.data.durationMinutes,
+        sessionType: parsed.data.sessionType,
       });
     }
   }

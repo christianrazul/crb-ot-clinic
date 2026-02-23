@@ -213,6 +213,20 @@ export function CreateSessionDialog({
                       </Select>
                     </div>
 
+                    <div className="space-y-2">
+                      <Label htmlFor="sessionType">Session Type</Label>
+                      <Select name="sessionType" defaultValue="regular">
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select session type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="regular">Regular Session</SelectItem>
+                          <SelectItem value="ot_evaluation">OT Evaluation</SelectItem>
+                          <SelectItem value="make_up">Make Up Session</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="scheduledDate">Date</Label>
@@ -327,6 +341,20 @@ export function CreateSessionDialog({
                               {roleLabels[therapist.role]})
                             </SelectItem>
                           ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="sessionType">Session Type</Label>
+                      <Select name="sessionType" defaultValue="regular">
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select session type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="regular">Regular Session</SelectItem>
+                          <SelectItem value="ot_evaluation">OT Evaluation</SelectItem>
+                          <SelectItem value="make_up">Make Up Session</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
