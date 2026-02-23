@@ -74,7 +74,6 @@ export function CreateSessionDialog({
   clients,
   therapists,
   defaultDate,
-  userRole = "",
 }: CreateSessionDialogProps) {
   const [open, setOpen] = useState(false);
   const [selectedClinic, setSelectedClinic] = useState<string>("");

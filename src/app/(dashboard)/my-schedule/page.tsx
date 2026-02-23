@@ -1,12 +1,14 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth/auth";
 import { isTherapist } from "@/lib/auth/permissions";
-import { getSessions } from "@/actions/sessions";
+import { getSessions, getSessionsInRange } from "@/actions/sessions";
 import { MyScheduleView } from "./my-schedule-view";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, startOfWeek, endOfWeek } from "date-fns";
+
+type ViewMode = "daily" | "weekly";
 
 interface PageProps {
-  searchParams: Promise<{ date?: string }>;
+  searchParams: Promise<{ date?: string; view?: string }>;
 }
 
 export default async function MySchedulePage({ searchParams }: PageProps) {
@@ -18,8 +20,14 @@ export default async function MySchedulePage({ searchParams }: PageProps) {
   }
 
   const selectedDate = params.date ? parseISO(params.date) : new Date();
+  const viewMode: ViewMode = params.view === "weekly" ? "weekly" : "daily";
 
-  const sessionsResult = await getSessions(selectedDate);
+  const sessionsResult = viewMode === "weekly"
+    ? await getSessionsInRange(
+        startOfWeek(selectedDate, { weekStartsOn: 1 }),
+        endOfWeek(selectedDate, { weekStartsOn: 1 })
+      )
+    : await getSessions(selectedDate);
 
   if (sessionsResult.error) {
     return <div>Error: {sessionsResult.error}</div>;
@@ -39,6 +47,7 @@ export default async function MySchedulePage({ searchParams }: PageProps) {
         selectedDate={selectedDate}
         currentUserId={session.user.id}
         currentUserRole={session.user.role}
+        viewMode={viewMode}
       />
     </div>
   );

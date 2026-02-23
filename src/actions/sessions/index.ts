@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { auth } from "@/lib/auth/auth";
 import { hasPermission, canAccessClinic, isTherapist } from "@/lib/auth/permissions";
 import { createSessionSchema, createMultipleSessionsSchema } from "@/lib/validations/session";
-import { createAuditLog } from "@/lib/audit";
+// import { createAuditLog } from "@/lib/audit";
 import { startOfDay, endOfDay, parseISO } from "date-fns";
 import { SessionStatus, PaymentStatus } from "@prisma/client";
 

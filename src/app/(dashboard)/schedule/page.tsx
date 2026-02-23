@@ -1,15 +1,17 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth/auth";
 import { hasPermission } from "@/lib/auth/permissions";
-import { getSessions, getClientsForScheduling } from "@/actions/sessions";
+import { getSessions, getSessionsInRange, getClientsForScheduling } from "@/actions/sessions";
 import { getClinics } from "@/actions/users";
 import { getTherapists } from "@/actions/clients";
 import { ScheduleView } from "./schedule-view";
 import { CreateSessionDialog } from "./create-session-dialog";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, startOfWeek, endOfWeek } from "date-fns";
+
+type ViewMode = "daily" | "weekly";
 
 interface PageProps {
-  searchParams: Promise<{ date?: string; clinic?: string }>;
+  searchParams: Promise<{ date?: string; clinic?: string; view?: string }>;
 }
 
 export default async function SchedulePage({ searchParams }: PageProps) {
@@ -22,9 +24,17 @@ export default async function SchedulePage({ searchParams }: PageProps) {
 
   const selectedDate = params.date ? parseISO(params.date) : new Date();
   const selectedClinic = params.clinic || undefined;
+  const viewMode: ViewMode = params.view === "weekly" ? "weekly" : "daily";
 
-  const [sessionsResult, clinics, clients, therapists] = await Promise.all([
-    getSessions(selectedDate, selectedClinic),
+  const sessionsResult = viewMode === "weekly"
+    ? await getSessionsInRange(
+        startOfWeek(selectedDate, { weekStartsOn: 1 }),
+        endOfWeek(selectedDate, { weekStartsOn: 1 }),
+        selectedClinic
+      )
+    : await getSessions(selectedDate, selectedClinic);
+
+  const [clinics, clients, therapists] = await Promise.all([
     getClinics(),
     getClientsForScheduling(selectedClinic),
     getTherapists(selectedClinic),
@@ -59,6 +69,7 @@ export default async function SchedulePage({ searchParams }: PageProps) {
         selectedClinic={selectedClinic}
         currentUserId={session.user.id}
         currentUserRole={session.user.role}
+        viewMode={viewMode}
       />
     </div>
   );
