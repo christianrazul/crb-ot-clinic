@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { db } from "@/lib/db";
 import { hasPermission, isTherapist } from "@/lib/auth/permissions";
 import { getDailyRevenue } from "@/actions/payments";
+import { getExpectedIncomeToday } from "@/actions/attendance";
 import { format } from "date-fns";
 import { Calendar, Users, ClipboardList, DollarSign } from "lucide-react";
 import { PendingConfirmationsCard } from "@/components/dashboard/pending-confirmations-card";
@@ -25,7 +26,7 @@ export default async function DashboardPage() {
 
   const canViewFinancials = hasPermission(user.role, "view_financial_reports");
 
-  const [todaySessions, activeClients, pendingConfirmations, dailyRevenueResult] = await Promise.all([
+  const [todaySessions, activeClients, pendingConfirmations, dailyRevenueResult, expectedIncomeResult] = await Promise.all([
     db.session.count({
       where: {
         scheduledDate: {
@@ -63,9 +64,11 @@ export default async function DashboardPage() {
         })
       : [],
     canViewFinancials ? getDailyRevenue(new Date()) : { data: 0 },
+    canViewFinancials ? getExpectedIncomeToday() : { data: 0 },
   ]);
 
   const dailyRevenue = dailyRevenueResult.data || 0;
+  const expectedIncomeToday = expectedIncomeResult.data || 0;
 
   function formatCurrency(amount: number): string {
     return new Intl.NumberFormat("en-PH", {
@@ -136,22 +139,54 @@ export default async function DashboardPage() {
         )}
 
         {canViewFinancials && (
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Today&apos;s Revenue
-              </CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(dailyRevenue)}</div>
-              <p className="text-xs text-muted-foreground">
-                collected today
-              </p>
-            </CardContent>
-          </Card>
+          <>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  Today&apos;s Revenue
+                </CardTitle>
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatCurrency(dailyRevenue)}</div>
+                <p className="text-xs text-muted-foreground">
+                  collected today
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  Expected Income Today
+                </CardTitle>
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatCurrency(expectedIncomeToday)}</div>
+                <p className="text-xs text-muted-foreground">
+                  collectible from today&apos;s attendance
+                </p>
+              </CardContent>
+            </Card>
+          </>
         )}
       </div>
+
+      {canViewFinancials && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Financial Summary</CardTitle>
+            <CardDescription>
+              Reports data is consolidated into dashboard for daily operations.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-1 text-sm text-muted-foreground">
+            <p>Collected today: {formatCurrency(dailyRevenue)}</p>
+            <p>Expected income today: {formatCurrency(expectedIncomeToday)}</p>
+          </CardContent>
+        </Card>
+      )}
 
       {canVerify && pendingConfirmations.length > 0 && (
         <PendingConfirmationsCard sessions={pendingConfirmations} />

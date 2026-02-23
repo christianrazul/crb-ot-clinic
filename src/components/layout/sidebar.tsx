@@ -8,7 +8,6 @@ import {
   Users,
   ClipboardList,
   CreditCard,
-  BarChart3,
   Settings,
   LogOut,
   CalendarDays,
@@ -81,12 +80,6 @@ const navItems: NavItem[] = [
     href: "/payments",
     icon: CreditCard,
     permission: "view_payments",
-  },
-  {
-    title: "Reports",
-    href: "/reports",
-    icon: BarChart3,
-    permission: "view_reports",
   },
   {
     title: "User Management",

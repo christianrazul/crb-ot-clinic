@@ -7,7 +7,7 @@ import { hasPermission, canAccessClinic, isTherapist } from "@/lib/auth/permissi
 import { createSessionSchema, createMultipleSessionsSchema } from "@/lib/validations/session";
 import { createAuditLog } from "@/lib/audit";
 import { startOfDay, endOfDay, parseISO } from "date-fns";
-import { SessionStatus, PaymentStatus, CreditType, PaymentMethod, PaymentSource } from "@prisma/client";
+import { SessionStatus, PaymentStatus } from "@prisma/client";
 
 export type ActionState = {
   error?: string;
@@ -178,6 +178,10 @@ export async function createSession(
     });
 
     if (includePayment && hasPermission(session.user.role, "collect_payments")) {
+      if (!advancePaymentId) {
+        throw new Error("Schedule-time pay-now has been removed. Record payment after attendance.");
+      }
+
       if (advancePaymentId) {
         const existingPayment = await tx.payment.findUnique({
           where: { id: advancePaymentId },
@@ -187,6 +191,18 @@ export async function createSession(
         });
 
         if (existingPayment) {
+          if (existingPayment.clientId !== parsed.data.clientId) {
+            throw new Error("Advance payment does not belong to selected client");
+          }
+
+          if (existingPayment.clinicId !== parsed.data.clinicId) {
+            throw new Error("Advance payment does not belong to selected clinic");
+          }
+
+          if (existingPayment.status !== PaymentStatus.completed) {
+            throw new Error("Advance payment is not in a usable state");
+          }
+
           const sessionsRemaining =
             existingPayment.sessionsPaid - existingPayment._count.paymentSessions;
           if (sessionsRemaining > 0) {
@@ -199,71 +215,11 @@ export async function createSession(
                 amount: perSessionAmount,
               },
             });
+          } else {
+            throw new Error("No remaining sessions on selected advance payment");
           }
-        }
-      } else {
-        const amount = parseFloat(formData.get("amount") as string) || 0;
-        const paymentMethod = (formData.get("paymentMethod") as string) || "cash";
-        const paymentSource = (formData.get("paymentSource") as string) || "client";
-        const creditType = (formData.get("creditType") as string) || "regular";
-        const sessionsPaid = parseInt(formData.get("sessionsPaid") as string) || 1;
-        const receiptNumber = formData.get("receiptNumber") as string;
-        const paymentNotes = formData.get("paymentNotes") as string;
-
-        if (amount > 0 || creditType === "no_payment") {
-          if (receiptNumber) {
-            const existingReceipt = await tx.payment.findUnique({
-              where: { receiptNumber },
-            });
-            if (existingReceipt) {
-              throw new Error("Receipt number already exists");
-            }
-          }
-
-          const payment = await tx.payment.create({
-            data: {
-              clinicId: parsed.data.clinicId,
-              clientId: parsed.data.clientId,
-              paymentType: "per_session",
-              amount,
-              paymentMethod: paymentMethod as PaymentMethod,
-              paymentSource: paymentSource as PaymentSource,
-              creditType: creditType as CreditType,
-              sessionsPaid,
-              recordedById: session.user.id,
-              receiptNumber: receiptNumber || null,
-              notes: paymentNotes || null,
-              status: PaymentStatus.completed,
-            },
-          });
-
-          const perSessionAmount = sessionsPaid > 0 ? amount / sessionsPaid : amount;
-          await tx.paymentSession.create({
-            data: {
-              paymentId: payment.id,
-              sessionId: newSession.id,
-              amount: perSessionAmount,
-            },
-          });
-
-          await createAuditLog({
-            userId: session.user.id,
-            userEmail: session.user.email!,
-            userRole: session.user.role,
-            action: "CREATE",
-            entityType: "Payment",
-            entityId: payment.id,
-            newValues: {
-              amount,
-              paymentMethod,
-              paymentSource,
-              creditType,
-              sessionsPaid,
-              sessionId: newSession.id,
-            },
-            description: `Recorded payment of ${amount} for session`,
-            clinicId: parsed.data.clinicId,
-          });
+        } else {
+          throw new Error("Selected advance payment was not found");
         }
       }
     }
@@ -353,81 +309,18 @@ export async function createMultipleSessions(
 
   const includePayment = formData.get("includePayment") === "true";
 
+  if (includePayment && hasPermission(session.user.role, "collect_payments")) {
+    return {
+      error: "Schedule-time pay-now has been removed for bulk scheduling. Record payments after attendance.",
+    };
+  }
+
   const result = await db.$transaction(async (tx) => {
     const createdSessions = await Promise.all(
       sessionsToCreate.map((sessionData) =>
         tx.session.create({ data: sessionData })
       )
     );
-
-    if (includePayment && hasPermission(session.user.role, "collect_payments")) {
-      const amount = parseFloat(formData.get("amount") as string) || 0;
-      const paymentMethod = (formData.get("paymentMethod") as string) || "cash";
-      const paymentSource = (formData.get("paymentSource") as string) || "client";
-      const creditType = (formData.get("creditType") as string) || "advance";
-      const receiptNumber = formData.get("receiptNumber") as string;
-      const paymentNotes = formData.get("paymentNotes") as string;
-
-      if (amount > 0 || creditType === "no_payment") {
-        if (receiptNumber) {
-          const existingReceipt = await tx.payment.findUnique({
-            where: { receiptNumber },
-          });
-          if (existingReceipt) {
-            throw new Error("Receipt number already exists");
-          }
-        }
-
-        const payment = await tx.payment.create({
-          data: {
-            clinicId: parsed.data.clinicId,
-            clientId: parsed.data.clientId,
-            paymentType: "per_session",
-            amount,
-            paymentMethod: paymentMethod as PaymentMethod,
-            paymentSource: paymentSource as PaymentSource,
-            creditType: creditType as CreditType,
-            sessionsPaid: createdSessions.length,
-            recordedById: session.user.id,
-            receiptNumber: receiptNumber || null,
-            notes: paymentNotes || null,
-            status: PaymentStatus.completed,
-          },
-        });
-
-        const perSessionAmount = createdSessions.length > 0 ? amount / createdSessions.length : 0;
-        await Promise.all(
-          createdSessions.map((createdSession) =>
-            tx.paymentSession.create({
-              data: {
-                paymentId: payment.id,
-                sessionId: createdSession.id,
-                amount: perSessionAmount,
-              },
-            })
-          )
-        );
-
-        await createAuditLog({
-          userId: session.user.id,
-          userEmail: session.user.email!,
-          userRole: session.user.role,
-          action: "CREATE",
-          entityType: "Payment",
-          entityId: payment.id,
-          newValues: {
-            amount,
-            paymentMethod,
-            paymentSource,
-            creditType,
-            sessionsPaid: createdSessions.length,
-            sessionIds: createdSessions.map((s) => s.id),
-          },
-          description: `Recorded advance payment of ${amount} for ${createdSessions.length} sessions`,
-          clinicId: parsed.data.clinicId,
-        });
-      }
-    }
 
     return { count: createdSessions.length, skippedDates };
   });

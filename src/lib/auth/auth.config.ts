@@ -13,7 +13,6 @@ export const authConfig = {
         nextUrl.pathname.startsWith("/clients") ||
         nextUrl.pathname.startsWith("/sessions") ||
         nextUrl.pathname.startsWith("/payments") ||
-        nextUrl.pathname.startsWith("/reports") ||
         nextUrl.pathname.startsWith("/my-schedule") ||
         nextUrl.pathname.startsWith("/admin");
 

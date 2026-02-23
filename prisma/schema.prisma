@@ -60,6 +60,11 @@ enum PaymentStatus {
   refunded
 }
 
+enum AttendancePaymentStatus {
+  UNPAID
+  PAID
+}
+
 enum PackageStatus {
   active
   exhausted
@@ -321,6 +326,7 @@ model AttendanceLog {
   loggedAt           DateTime @default(now()) @map("logged_at")
   loggedBy           User     @relation("AttendanceLogger", fields: [loggedById], references: [id])
   loggedById         String   @map("logged_by_id")
+  paymentStatus      AttendancePaymentStatus @default(UNPAID) @map("payment_status")
   notes              String?
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")

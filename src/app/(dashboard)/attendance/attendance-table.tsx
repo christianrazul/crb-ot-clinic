@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { format } from "date-fns";
 import {
   Table,
@@ -9,6 +10,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { AttendancePaymentDialog } from "./attendance-payment-dialog";
 
 interface AttendanceLog {
   id: string;
@@ -20,9 +23,10 @@ interface AttendanceLog {
   loggedAt: Date;
   loggedById: string;
   notes: string | null;
+  paymentStatus: "UNPAID" | "PAID";
   clinic: { id: string; name: string; code: string };
   client: { id: string; firstName: string; lastName: string };
-  primaryTherapist: { id: string; firstName: string; lastName: string } | null;
+  primaryTherapist: { id: string; firstName: string; lastName: string; role?: string } | null;
   loggedBy: { id: string; firstName: string; lastName: string };
 }
 
@@ -31,6 +35,8 @@ interface AttendanceTableProps {
 }
 
 export function AttendanceTable({ logs }: AttendanceTableProps) {
+  const [selectedLog, setSelectedLog] = useState<AttendanceLog | null>(null);
+
   if (logs.length === 0) {
     return (
       <div className="rounded-md border p-8 text-center text-muted-foreground">
@@ -47,6 +53,7 @@ export function AttendanceTable({ logs }: AttendanceTableProps) {
             <TableHead>Client Name</TableHead>
             <TableHead>Guardian</TableHead>
             <TableHead>Primary Therapist</TableHead>
+            <TableHead>Payment Status</TableHead>
             <TableHead>Logged At</TableHead>
             <TableHead>Logged By</TableHead>
             <TableHead>Notes</TableHead>
@@ -54,7 +61,11 @@ export function AttendanceTable({ logs }: AttendanceTableProps) {
         </TableHeader>
         <TableBody>
           {logs.map((log) => (
-            <TableRow key={log.id}>
+            <TableRow
+              key={log.id}
+              className="cursor-pointer"
+              onClick={() => setSelectedLog(log)}
+            >
               <TableCell className="font-medium">
                 {log.client.firstName} {log.client.lastName}
               </TableCell>
@@ -72,6 +83,11 @@ export function AttendanceTable({ logs }: AttendanceTableProps) {
                   : "-"}
               </TableCell>
               <TableCell>
+                <Badge variant={log.paymentStatus === "PAID" ? "default" : "secondary"}>
+                  {log.paymentStatus}
+                </Badge>
+              </TableCell>
+              <TableCell>
                 {format(new Date(log.loggedAt), "MMM d, yyyy h:mm a")}
               </TableCell>
               <TableCell>
@@ -84,6 +100,16 @@ export function AttendanceTable({ logs }: AttendanceTableProps) {
           ))}
         </TableBody>
       </Table>
+
+      <AttendancePaymentDialog
+        open={!!selectedLog}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedLog(null);
+          }
+        }}
+        log={selectedLog}
+      />
     </div>
   );
 }

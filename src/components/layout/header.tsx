@@ -75,7 +75,6 @@ function getPageTitle(pathname: string) {
     "/clients": "Clients",
     "/sessions": "Sessions",
     "/payments": "Payments",
-    "/reports": "Reports",
     "/my-schedule": "My Schedule",
     "/admin/users": "User Management",
   };

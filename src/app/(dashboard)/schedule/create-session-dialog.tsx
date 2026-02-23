@@ -26,12 +26,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { createSession, createMultipleSessions, ActionState } from "@/actions/sessions";
-import { getSessionRate, getClientAdvancePayments } from "@/actions/payments";
-import { roleLabels, hasPermission } from "@/lib/auth/permissions";
+import { roleLabels } from "@/lib/auth/permissions";
 import { formatTime12hr } from "@/lib/utils";
 
 interface Clinic {
@@ -54,15 +52,6 @@ interface Therapist {
   lastName: string;
   role: UserRole;
   primaryClinicId: string | null;
-}
-
-interface AdvancePayment {
-  id: string;
-  amount: number | { toString(): string };
-  sessionsPaid: number;
-  sessionsUsed: number;
-  sessionsRemaining: number;
-  paymentDate: Date;
 }
 
 interface CreateSessionDialogProps {
@@ -100,49 +89,14 @@ export function CreateSessionDialog({
     initialState
   );
 
-  // Payment state (shared between tabs)
-  const [paymentMethod, setPaymentMethod] = useState<string>("cash");
-  const [paymentSource, setPaymentSource] = useState<string>("client");
-  const [creditType, setCreditType] = useState<string>("regular");
-  const [sessionsPaid, setSessionsPaid] = useState<number>(1);
-  const [amount, setAmount] = useState<string>("");
-  const [sessionRate, setSessionRate] = useState<number | null>(null);
-  const [receiptNumber, setReceiptNumber] = useState<string>("");
-  const [paymentNotes, setPaymentNotes] = useState<string>("");
-  const [advancePayments, setAdvancePayments] = useState<AdvancePayment[]>([]);
-  const [useAdvancePayment, setUseAdvancePayment] = useState<string>("");
-
   // Multiple sessions state
   const [selectedDates, setSelectedDates] = useState<Date[]>([]);
-  const [multiCreditType, setMultiCreditType] = useState<string>("advance");
-  const [multiAmount, setMultiAmount] = useState<string>("");
-  const [multiPaymentMethod, setMultiPaymentMethod] = useState<string>("cash");
-  const [multiPaymentSource, setMultiPaymentSource] = useState<string>("client");
-  const [multiReceiptNumber, setMultiReceiptNumber] = useState<string>("");
-  const [multiPaymentNotes, setMultiPaymentNotes] = useState<string>("");
-
-  const canCollectPayments = hasPermission(userRole, "collect_payments");
 
   const resetForm = useCallback(() => {
     setSelectedClinic("");
     setSelectedClient("");
     setSelectedTherapist("");
-    setPaymentMethod("cash");
-    setPaymentSource("client");
-    setCreditType("regular");
-    setSessionsPaid(1);
-    setAmount("");
-    setReceiptNumber("");
-    setPaymentNotes("");
-    setAdvancePayments([]);
-    setUseAdvancePayment("");
     setSelectedDates([]);
-    setMultiCreditType("advance");
-    setMultiAmount("");
-    setMultiPaymentMethod("cash");
-    setMultiPaymentSource("client");
-    setMultiReceiptNumber("");
-    setMultiPaymentNotes("");
   }, []);
 
   useEffect(() => {
@@ -151,54 +105,6 @@ export function CreateSessionDialog({
       resetForm();
     }
   }, [singleState.success, multipleState.success, resetForm]);
-
-  const fetchSessionRate = useCallback(async (clinicId: string, therapistRole: string) => {
-    const result = await getSessionRate(clinicId, therapistRole);
-    if (result.data !== undefined && result.data !== null) {
-      setSessionRate(result.data);
-      setAmount(result.data.toString());
-      setMultiAmount((result.data * selectedDates.length).toString());
-    }
-  }, [selectedDates.length]);
-
-  const fetchAdvancePayments = useCallback(async (clientId: string) => {
-    const result = await getClientAdvancePayments(clientId);
-    if (result.data) {
-      setAdvancePayments(result.data);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (selectedClient && canCollectPayments) {
-      fetchAdvancePayments(selectedClient);
-    } else {
-      setAdvancePayments([]);
-    }
-  }, [selectedClient, canCollectPayments, fetchAdvancePayments]);
-
-  useEffect(() => {
-    if (selectedClinic && selectedTherapist) {
-      const therapist = therapists.find((t) => t.id === selectedTherapist);
-      if (therapist) {
-        fetchSessionRate(selectedClinic, therapist.role);
-      }
-    }
-  }, [selectedClinic, selectedTherapist, therapists, fetchSessionRate]);
-
-  useEffect(() => {
-    if (sessionRate && sessionsPaid > 0 && creditType !== "no_payment") {
-      setAmount((sessionRate * sessionsPaid).toString());
-    }
-  }, [sessionRate, sessionsPaid, creditType]);
-
-  // Update multi-session amount when dates or rate changes
-  useEffect(() => {
-    if (sessionRate && selectedDates.length > 0 && multiCreditType !== "no_payment") {
-      setMultiAmount((sessionRate * selectedDates.length).toString());
-    } else if (multiCreditType === "no_payment") {
-      setMultiAmount("0");
-    }
-  }, [sessionRate, selectedDates.length, multiCreditType]);
 
   const filteredClients = clients.filter(
     (c) => !selectedClinic || c.mainClinicId === selectedClinic
@@ -211,8 +117,6 @@ export function CreateSessionDialog({
   const selectedClientData = clients.find((c) => c.id === selectedClient);
   const suggestedTherapist = selectedClientData?.primaryTherapistId;
 
-  const dialogWidth = canCollectPayments ? "sm:max-w-[900px]" : "sm:max-w-[500px]";
-
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -221,7 +125,7 @@ export function CreateSessionDialog({
           Schedule Session
         </Button>
       </DialogTrigger>
-      <DialogContent className={`${dialogWidth} max-h-[90vh] overflow-hidden flex flex-col`}>
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle>Schedule Session</DialogTitle>
           <DialogDescription>
@@ -238,9 +142,7 @@ export function CreateSessionDialog({
           <TabsContent value="single" className="flex-1 overflow-hidden">
             <form action={singleFormAction} className="h-full flex flex-col">
               <ScrollArea className="flex-1 pr-4">
-                <div className={`py-4 ${canCollectPayments ? "grid grid-cols-2 gap-6" : ""}`}>
-                  {/* Left Column - Session Info */}
-                  <div className="space-y-4">
+                <div className="py-4 space-y-4">
                     {singleState.error && (
                       <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
                         {singleState.error}
@@ -340,188 +242,9 @@ export function CreateSessionDialog({
                     </div>
 
                     <input type="hidden" name="durationMinutes" value="60" />
-                  </div>
 
-                  {/* Right Column - Payment */}
-                  {canCollectPayments && (
-                    <div className="space-y-4 border-l pl-6">
-                      <h3 className="font-medium text-sm">Payment</h3>
-
-                      {advancePayments.length > 0 && (
-                        <div className="space-y-2">
-                          <Label>Use Existing Advance Payment</Label>
-                          <Select
-                            value={useAdvancePayment}
-                            onValueChange={(value) => {
-                              setUseAdvancePayment(value);
-                              if (value) {
-                                setPaymentMethod("none");
-                                setCreditType("advance");
-                                setAmount("0");
-                              } else {
-                                setPaymentMethod("cash");
-                                setCreditType("regular");
-                                if (sessionRate) {
-                                  setAmount(sessionRate.toString());
-                                }
-                              }
-                            }}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Pay now instead" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="">Pay now instead</SelectItem>
-                              {advancePayments.map((ap) => (
-                                <SelectItem key={ap.id} value={ap.id}>
-                                  {ap.sessionsRemaining} session(s) remaining
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <input
-                            type="hidden"
-                            name="advancePaymentId"
-                            value={useAdvancePayment}
-                          />
-                        </div>
-                      )}
-
-                      {!useAdvancePayment && (
-                        <>
-                          <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                              <Label>Payment Channel</Label>
-                              <Select
-                                name="paymentMethod"
-                                value={paymentMethod}
-                                onValueChange={setPaymentMethod}
-                              >
-                                <SelectTrigger>
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="cash">Cash</SelectItem>
-                                  <SelectItem value="gcash">GCash</SelectItem>
-                                  <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
-                                  <SelectItem value="none">None</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-
-                            <div className="space-y-2">
-                              <Label>Source</Label>
-                              <Select
-                                name="paymentSource"
-                                value={paymentSource}
-                                onValueChange={setPaymentSource}
-                              >
-                                <SelectTrigger>
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="client">Client</SelectItem>
-                                  <SelectItem value="dswd">DSWD</SelectItem>
-                                  <SelectItem value="cswdo">CSWDO</SelectItem>
-                                  <SelectItem value="other_govt">Other Govt</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          </div>
-
-                          <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                              <Label>Charged To</Label>
-                              <Select
-                                name="creditType"
-                                value={creditType}
-                                onValueChange={(value) => {
-                                  setCreditType(value);
-                                  if (value === "no_payment") {
-                                    setAmount("0");
-                                    setPaymentMethod("none");
-                                  } else if (sessionRate) {
-                                    setAmount((sessionRate * sessionsPaid).toString());
-                                  }
-                                }}
-                              >
-                                <SelectTrigger>
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="regular">Regular</SelectItem>
-                                  <SelectItem value="advance">Advance</SelectItem>
-                                  <SelectItem value="no_payment">No Payment</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-
-                            <div className="space-y-2">
-                              <Label>Sessions Paid</Label>
-                              <Select
-                                name="sessionsPaid"
-                                value={sessionsPaid.toString()}
-                                onValueChange={(value) => setSessionsPaid(parseInt(value))}
-                              >
-                                <SelectTrigger>
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
-                                    <SelectItem key={n} value={n.toString()}>
-                                      {n} session{n > 1 ? "s" : ""}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          </div>
-
-                          <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                              <Label>Amount (PHP)</Label>
-                              <Input
-                                name="amount"
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                value={amount}
-                                onChange={(e) => setAmount(e.target.value)}
-                                placeholder="0.00"
-                              />
-                            </div>
-
-                            <div className="space-y-2">
-                              <Label>Receipt #</Label>
-                              <Input
-                                name="receiptNumber"
-                                value={receiptNumber}
-                                onChange={(e) => setReceiptNumber(e.target.value)}
-                                placeholder="Optional"
-                              />
-                            </div>
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label>Notes</Label>
-                            <Textarea
-                              name="paymentNotes"
-                              value={paymentNotes}
-                              onChange={(e) => setPaymentNotes(e.target.value)}
-                              placeholder="Optional payment notes"
-                              rows={2}
-                            />
-                          </div>
-                        </>
-                      )}
-
-                      <input
-                        type="hidden"
-                        name="includePayment"
-                        value={useAdvancePayment || parseFloat(amount) > 0 || creditType === "no_payment" ? "true" : "false"}
-                      />
-                    </div>
-                  )}
+                  <input type="hidden" name="advancePaymentId" value="" />
+                  <input type="hidden" name="includePayment" value="false" />
                 </div>
               </ScrollArea>
 
@@ -537,9 +260,7 @@ export function CreateSessionDialog({
           <TabsContent value="multiple" className="flex-1 overflow-hidden">
             <form action={multipleFormAction} className="h-full flex flex-col">
               <ScrollArea className="flex-1 pr-4">
-                <div className={`py-4 ${canCollectPayments ? "grid grid-cols-2 gap-6" : ""}`}>
-                  {/* Left Column - Session Info */}
-                  <div className="space-y-4">
+                <div className="py-4 space-y-4">
                     {multipleState.error && (
                       <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
                         {multipleState.error}
@@ -655,140 +376,8 @@ export function CreateSessionDialog({
                       name="selectedDates"
                       value={JSON.stringify(selectedDates.map((d) => format(d, "yyyy-MM-dd")))}
                     />
-                  </div>
 
-                  {/* Right Column - Payment */}
-                  {canCollectPayments && (
-                    <div className="space-y-4 border-l pl-6">
-                      <h3 className="font-medium text-sm">Payment</h3>
-
-                      <div className="rounded-md bg-muted p-3 space-y-1">
-                        <div className="flex justify-between text-sm">
-                          <span>Sessions:</span>
-                          <span className="font-medium">{selectedDates.length}</span>
-                        </div>
-                        {sessionRate && (
-                          <>
-                            <div className="flex justify-between text-sm">
-                              <span>Rate per session:</span>
-                              <span>PHP {sessionRate.toFixed(2)}</span>
-                            </div>
-                            <div className="flex justify-between text-sm font-medium border-t pt-1 mt-1">
-                              <span>Total:</span>
-                              <span>PHP {(sessionRate * selectedDates.length).toFixed(2)}</span>
-                            </div>
-                          </>
-                        )}
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label>Payment Channel</Label>
-                          <Select
-                            name="paymentMethod"
-                            value={multiPaymentMethod}
-                            onValueChange={setMultiPaymentMethod}
-                          >
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="cash">Cash</SelectItem>
-                              <SelectItem value="gcash">GCash</SelectItem>
-                              <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
-                              <SelectItem value="none">None</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label>Source</Label>
-                          <Select
-                            name="paymentSource"
-                            value={multiPaymentSource}
-                            onValueChange={setMultiPaymentSource}
-                          >
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="client">Client</SelectItem>
-                              <SelectItem value="dswd">DSWD</SelectItem>
-                              <SelectItem value="cswdo">CSWDO</SelectItem>
-                              <SelectItem value="other_govt">Other Govt</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>Charged To</Label>
-                        <Select
-                          name="creditType"
-                          value={multiCreditType}
-                          onValueChange={(value) => {
-                            setMultiCreditType(value);
-                            if (value === "no_payment") {
-                              setMultiAmount("0");
-                              setMultiPaymentMethod("none");
-                            } else if (sessionRate) {
-                              setMultiAmount((sessionRate * selectedDates.length).toString());
-                            }
-                          }}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="advance">Advance Payment</SelectItem>
-                            <SelectItem value="no_payment">No Payment (Govt Assistance)</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label>Amount (PHP)</Label>
-                          <Input
-                            name="amount"
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            value={multiAmount}
-                            onChange={(e) => setMultiAmount(e.target.value)}
-                            placeholder="0.00"
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label>Receipt #</Label>
-                          <Input
-                            name="receiptNumber"
-                            value={multiReceiptNumber}
-                            onChange={(e) => setMultiReceiptNumber(e.target.value)}
-                            placeholder="Optional"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>Notes</Label>
-                        <Textarea
-                          name="paymentNotes"
-                          value={multiPaymentNotes}
-                          onChange={(e) => setMultiPaymentNotes(e.target.value)}
-                          placeholder="Optional payment notes"
-                          rows={2}
-                        />
-                      </div>
-
-                      <input
-                        type="hidden"
-                        name="includePayment"
-                        value={selectedDates.length > 0 ? "true" : "false"}
-                      />
-                    </div>
-                  )}
+                  <input type="hidden" name="includePayment" value="false" />
                 </div>
               </ScrollArea>
 
