@@ -15,8 +15,14 @@ import {
 import { roleLabels } from "@/lib/auth/permissions";
 import { signOut } from "next-auth/react";
 import { UserRole } from "@prisma/client";
+import { Menu } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
-export function Header() {
+interface HeaderProps {
+  onToggleSidebar: () => void;
+}
+
+export function Header({ onToggleSidebar }: HeaderProps) {
   const pathname = usePathname();
   const { data: session } = useSession();
   const user = session?.user;
@@ -32,6 +38,14 @@ export function Header() {
   return (
     <header className="flex h-14 items-center justify-between border-b bg-background px-6">
       <div className="flex items-center gap-4">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onToggleSidebar}
+          aria-label="Toggle sidebar"
+        >
+          <Menu className="h-5 w-5" />
+        </Button>
         <h1 className="text-lg font-medium">
           {getPageTitle(pathname)}
         </h1>
