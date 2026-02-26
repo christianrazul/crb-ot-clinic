@@ -1,0 +1,4 @@
+-- This migration was an experimental step and is intentionally a no-op.
+-- Keeping the folder preserves migration ordering while avoiding
+-- shadow-database replay failures from dropping a column that does not
+-- exist earlier in the migration chain.

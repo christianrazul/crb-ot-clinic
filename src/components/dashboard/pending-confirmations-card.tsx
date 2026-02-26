@@ -18,7 +18,8 @@ interface PendingSession {
   scheduledTime: string;
   startedAt: Date | null;
   clinic: { id: string; name: string; code: string };
-  client: { id: string; firstName: string; lastName: string };
+  client: { id: string; firstName: string; lastName: string } | null;
+  clientName?: string | null;
   therapist: { id: string; firstName: string; lastName: string; role: UserRole };
   startedBy: { id: string; firstName: string; lastName: string } | null;
 }
@@ -77,7 +78,9 @@ export function PendingConfirmationsCard({ sessions }: PendingConfirmationsCardP
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <span className="font-medium">
-                      {session.client.firstName} {session.client.lastName}
+                      {session.client
+                        ? `${session.client.firstName} ${session.client.lastName}`
+                        : session.clientName || "New client"}
                     </span>
                     <Badge variant="outline" className="text-xs">
                       {session.clinic.code}
