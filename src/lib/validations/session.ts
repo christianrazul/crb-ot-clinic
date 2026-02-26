@@ -1,9 +1,12 @@
 import { z } from "zod";
 
+const sessionTypeSchema = z.enum(["regular", "ot_evaluation", "make_up"]);
+
 export const createSessionSchema = z.object({
   clinicId: z.string().min(1, "Clinic is required"),
   clientId: z.string().min(1, "Client is required"),
   therapistId: z.string().min(1, "Therapist is required"),
+  sessionType: sessionTypeSchema.default("regular"),
   scheduledDate: z.string().min(1, "Date is required"),
   scheduledTime: z.string().min(1, "Time is required"),
   durationMinutes: z.number().int().min(15).max(180).default(60),
@@ -13,6 +16,7 @@ export const createMultipleSessionsSchema = z.object({
   clinicId: z.string().min(1, "Clinic is required"),
   clientId: z.string().min(1, "Client is required"),
   therapistId: z.string().min(1, "Therapist is required"),
+  sessionType: sessionTypeSchema.default("regular"),
   scheduledTime: z.string().min(1, "Time is required"),
   selectedDates: z.array(z.string()).min(1, "At least one date must be selected"),
   durationMinutes: z.number().int().min(15).max(180).default(60),

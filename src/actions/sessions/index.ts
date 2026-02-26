@@ -130,6 +130,7 @@ export async function createSession(
     clinicId: formData.get("clinicId"),
     clientId: formData.get("clientId"),
     therapistId: formData.get("therapistId"),
+    sessionType: (formData.get("sessionType") as string) || undefined,
     scheduledDate: formData.get("scheduledDate"),
     scheduledTime: formData.get("scheduledTime"),
     durationMinutes: parseInt(formData.get("durationMinutes") as string) || 60,
@@ -171,6 +172,7 @@ export async function createSession(
         clinicId: parsed.data.clinicId,
         clientId: parsed.data.clientId,
         therapistId: parsed.data.therapistId,
+        sessionType: parsed.data.sessionType,
         scheduledDate,
         scheduledTime: parsed.data.scheduledTime,
         durationMinutes: parsed.data.durationMinutes,
@@ -249,6 +251,7 @@ export async function createMultipleSessions(
     clinicId: formData.get("clinicId"),
     clientId: formData.get("clientId"),
     therapistId: formData.get("therapistId"),
+    sessionType: (formData.get("sessionType") as string) || undefined,
     scheduledTime: formData.get("scheduledTime"),
     selectedDates,
     durationMinutes: parseInt(formData.get("durationMinutes") as string) || 60,
@@ -270,6 +273,7 @@ export async function createMultipleSessions(
     clinicId: string;
     clientId: string;
     therapistId: string;
+    sessionType: "regular" | "ot_evaluation" | "make_up";
     scheduledDate: Date;
     scheduledTime: string;
     durationMinutes: number;
@@ -296,6 +300,7 @@ export async function createMultipleSessions(
         clinicId: parsed.data.clinicId,
         clientId: parsed.data.clientId,
         therapistId: parsed.data.therapistId,
+        sessionType: parsed.data.sessionType,
         scheduledDate,
         scheduledTime: parsed.data.scheduledTime,
         durationMinutes: parsed.data.durationMinutes,

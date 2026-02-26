@@ -28,6 +28,7 @@ interface Session {
   scheduledDate?: Date;
   scheduledTime: string;
   durationMinutes?: number;
+  sessionType: "regular" | "ot_evaluation" | "make_up";
   status: SessionStatus;
   startedAt?: Date | null;
   clinic: { id: string; name: string; code: string };
@@ -84,6 +85,7 @@ export function ScheduleView({
       scheduledDate: session.scheduledDate || selectedDate,
       scheduledTime: session.scheduledTime,
       durationMinutes: session.durationMinutes || 60,
+      sessionType: session.sessionType,
       status: session.status,
       startedAt: session.startedAt || null,
       clinic: session.clinic,

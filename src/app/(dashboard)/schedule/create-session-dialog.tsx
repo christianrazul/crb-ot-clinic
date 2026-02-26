@@ -69,6 +69,12 @@ const timeSlots = [
   "13:00", "14:00", "15:00", "16:00", "17:00",
 ];
 
+const sessionTypeOptions = [
+  { value: "regular", label: "Regular Session" },
+  { value: "ot_evaluation", label: "OT Evaluation" },
+  { value: "make_up", label: "Make Up Session" },
+];
+
 export function CreateSessionDialog({
   clinics,
   clients,
@@ -212,6 +218,22 @@ export function CreateSessionDialog({
                       </Select>
                     </div>
 
+                    <div className="space-y-2">
+                      <Label htmlFor="sessionType">Session Type</Label>
+                      <Select name="sessionType" defaultValue="regular" required>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a session type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {sessionTypeOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="scheduledDate">Date</Label>
@@ -324,6 +346,22 @@ export function CreateSessionDialog({
                             <SelectItem key={therapist.id} value={therapist.id}>
                               {therapist.firstName} {therapist.lastName} (
                               {roleLabels[therapist.role]})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="sessionType">Session Type</Label>
+                      <Select name="sessionType" defaultValue="regular" required>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a session type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {sessionTypeOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
                             </SelectItem>
                           ))}
                         </SelectContent>
