@@ -15,6 +15,35 @@ export type ActionState = {
   data?: unknown;
 };
 
+function buildFallbackClient(clientName?: string | null) {
+  return {
+    id: "",
+    firstName: clientName || "New client",
+    lastName: "",
+    diagnosis: null,
+    guardianName: "",
+    guardianPhone: null,
+  };
+}
+
+type NormalizedClient = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  diagnosis?: string | null;
+  guardianName?: string;
+  guardianPhone?: string | null;
+};
+
+function normalizeSessionClient<T extends { client: NormalizedClient | null; clientName?: string | null }>(
+  session: T
+): Omit<T, "client"> & { client: NormalizedClient } {
+  return {
+    ...session,
+    client: session.client ?? buildFallbackClient(session.clientName),
+  };
+}
+
 export async function getSessions(date: Date, clinicId?: string) {
   const session = await auth();
   if (!session?.user) {
@@ -46,7 +75,7 @@ export async function getSessions(date: Date, clinicId?: string) {
     orderBy: { scheduledTime: "asc" },
   });
 
-  return { data: sessions };
+  return { data: sessions.map(normalizeSessionClient) };
 }
 
 export async function getSessionsInRange(startDate: Date, endDate: Date, clinicId?: string) {
@@ -77,7 +106,7 @@ export async function getSessionsInRange(startDate: Date, endDate: Date, clinicI
     orderBy: [{ scheduledDate: "asc" }, { scheduledTime: "asc" }],
   });
 
-  return { data: sessions };
+  return { data: sessions.map(normalizeSessionClient) };
 }
 
 export async function getSession(id: string) {
@@ -114,7 +143,7 @@ export async function getSession(id: string) {
     return { error: "Unauthorized" };
   }
 
-  return { data: sessionData };
+  return { data: normalizeSessionClient(sessionData) };
 }
 
 export async function createSession(
@@ -129,6 +158,7 @@ export async function createSession(
   const rawData = {
     clinicId: formData.get("clinicId"),
     clientId: formData.get("clientId"),
+    clientName: (formData.get("clientName") as string) || undefined,
     therapistId: formData.get("therapistId"),
     sessionType: (formData.get("sessionType") as string) || undefined,
     scheduledDate: formData.get("scheduledDate"),
@@ -165,12 +195,14 @@ export async function createSession(
 
   const includePayment = formData.get("includePayment") === "true";
   const advancePaymentId = formData.get("advancePaymentId") as string;
+  const selectedClientId = parsed.data.clientId ?? null;
 
   const result = await db.$transaction(async (tx) => {
     const newSession = await tx.session.create({
       data: {
         clinicId: parsed.data.clinicId,
-        clientId: parsed.data.clientId,
+        clientId: selectedClientId,
+        clientName: parsed.data.clientName,
         therapistId: parsed.data.therapistId,
         sessionType: parsed.data.sessionType,
         scheduledDate,
@@ -180,6 +212,10 @@ export async function createSession(
     });
 
     if (includePayment && hasPermission(session.user.role, "collect_payments")) {
+      if (!selectedClientId) {
+        throw new Error("Cannot attach advance payment when using an unregistered client name");
+      }
+
       if (!advancePaymentId) {
         throw new Error("Schedule-time pay-now has been removed. Record payment after attendance.");
       }
@@ -193,7 +229,7 @@ export async function createSession(
         });
 
         if (existingPayment) {
-          if (existingPayment.clientId !== parsed.data.clientId) {
+          if (existingPayment.clientId !== selectedClientId) {
             throw new Error("Advance payment does not belong to selected client");
           }
 
@@ -250,6 +286,7 @@ export async function createMultipleSessions(
   const rawData = {
     clinicId: formData.get("clinicId"),
     clientId: formData.get("clientId"),
+    clientName: (formData.get("clientName") as string) || undefined,
     therapistId: formData.get("therapistId"),
     sessionType: (formData.get("sessionType") as string) || undefined,
     scheduledTime: formData.get("scheduledTime"),
@@ -271,7 +308,8 @@ export async function createMultipleSessions(
 
   const sessionsToCreate: Array<{
     clinicId: string;
-    clientId: string;
+    clientId: string | null;
+    clientName?: string;
     therapistId: string;
     sessionType: "regular" | "ot_evaluation" | "make_up";
     scheduledDate: Date;
@@ -298,7 +336,8 @@ export async function createMultipleSessions(
     } else {
       sessionsToCreate.push({
         clinicId: parsed.data.clinicId,
-        clientId: parsed.data.clientId,
+        clientId: parsed.data.clientId ?? null,
+        clientName: parsed.data.clientName,
         therapistId: parsed.data.therapistId,
         sessionType: parsed.data.sessionType,
         scheduledDate,
@@ -525,7 +564,7 @@ export async function getPendingConfirmations(clinicId?: string) {
     orderBy: { startedAt: "asc" },
   });
 
-  return { data: sessions };
+  return { data: sessions.map(normalizeSessionClient) };
 }
 
 export async function getPendingConfirmationsCount(clinicId?: string) {

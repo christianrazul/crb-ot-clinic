@@ -76,6 +76,8 @@ const sessionTypeOptions = [
   { value: "make_up", label: "Make Up Session" },
 ];
 
+const NEW_CLIENT_OPTION_VALUE = "__new_client__";
+
 export function CreateSessionDialog({
   clinics,
   clients,
@@ -134,6 +136,7 @@ export function CreateSessionDialog({
 
   const selectedClientData = clients.find((c) => c.id === selectedClient);
   const suggestedTherapist = selectedClientData?.primaryTherapistId;
+  const isNewClientSelected = selectedClient === NEW_CLIENT_OPTION_VALUE;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -200,6 +203,7 @@ export function CreateSessionDialog({
                           <SelectValue placeholder="Select a client" />
                         </SelectTrigger>
                         <SelectContent>
+                          <SelectItem value={NEW_CLIENT_OPTION_VALUE}>New client..</SelectItem>
                           {filteredClients.map((client) => (
                             <SelectItem key={client.id} value={client.id}>
                               {client.firstName} {client.lastName}
@@ -207,6 +211,13 @@ export function CreateSessionDialog({
                           ))}
                         </SelectContent>
                       </Select>
+                      {isNewClientSelected && (
+                        <Input
+                          name="clientName"
+                          placeholder="Client name"
+                          required
+                        />
+                      )}
                     </div>
 
                     <div className="space-y-2">
@@ -334,6 +345,7 @@ export function CreateSessionDialog({
                           <SelectValue placeholder="Select a client" />
                         </SelectTrigger>
                         <SelectContent>
+                          <SelectItem value={NEW_CLIENT_OPTION_VALUE}>New client..</SelectItem>
                           {filteredClients.map((client) => (
                             <SelectItem key={client.id} value={client.id}>
                               {client.firstName} {client.lastName}
@@ -341,6 +353,13 @@ export function CreateSessionDialog({
                           ))}
                         </SelectContent>
                       </Select>
+                      {isNewClientSelected && (
+                        <Input
+                          name="clientName"
+                          placeholder="Client name"
+                          required
+                        />
+                      )}
                     </div>
 
                     <div className="space-y-2">
