@@ -5,7 +5,7 @@ import { hasPermission, isTherapist } from "@/lib/auth/permissions";
 import { getDailyRevenue } from "@/actions/payments";
 import { getExpectedIncomeToday } from "@/actions/attendance";
 import { format } from "date-fns";
-import { Calendar, Users, ClipboardList, DollarSign } from "lucide-react";
+import { Calendar, ClipboardList, DollarSign } from "lucide-react";
 import { PendingConfirmationsCard } from "@/components/dashboard/pending-confirmations-card";
 
 export default async function DashboardPage() {
@@ -23,10 +23,9 @@ export default async function DashboardPage() {
   const isTherapistUser = isTherapist(user.role);
 
   const canVerify = hasPermission(user.role, "verify_sessions");
-
   const canViewFinancials = hasPermission(user.role, "view_financial_reports");
 
-  const [todaySessions, activeClients, pendingConfirmations, dailyRevenueResult, expectedIncomeResult] = await Promise.all([
+  const [todaySessions, attendanceRecordsToday, pendingConfirmations, dailyRevenueResult, expectedIncomeResult] = await Promise.all([
     db.session.count({
       where: {
         scheduledDate: {
@@ -38,14 +37,16 @@ export default async function DashboardPage() {
         ...(canViewAll && user.primaryClinicId && { clinicId: user.primaryClinicId }),
       },
     }),
-    canViewAll
-      ? db.client.count({
-          where: {
-            status: "active",
-            ...(user.primaryClinicId && { mainClinicId: user.primaryClinicId }),
-          },
-        })
-      : 0,
+    db.attendanceLog.count({
+      where: {
+        loggedAt: {
+          gte: today,
+          lt: tomorrow,
+        },
+        ...(isTherapistUser && { primaryTherapistId: user.id }),
+        ...(canViewAll && user.primaryClinicId && { clinicId: user.primaryClinicId }),
+      },
+    }),
     canVerify
       ? db.session.findMany({
           where: {
@@ -88,58 +89,95 @@ export default async function DashboardPage() {
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Today&apos;s Sessions
-            </CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{todaySessions}</div>
-            <p className="text-xs text-muted-foreground">
-              {isTherapistUser ? "your scheduled sessions" : "scheduled sessions"}
-            </p>
-          </CardContent>
-        </Card>
-
-        {canViewAll && (
-          <>
+      <div className="grid gap-6 xl:grid-cols-2">
+        <section className="space-y-3">
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Sessions</h3>
+          <div className="grid gap-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
-                  Active Clients
+                  Today&apos;s Sessions
                 </CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
+                <Calendar className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{activeClients}</div>
+                <div className="text-2xl font-bold">{todaySessions}</div>
                 <p className="text-xs text-muted-foreground">
-                  enrolled clients
+                  {isTherapistUser ? "your scheduled sessions" : "scheduled sessions"}
                 </p>
               </CardContent>
             </Card>
 
+            {isTherapistUser && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Quick Actions</CardTitle>
+                  <CardDescription>
+                    Access your most common tasks
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">
+                    View your schedule in &quot;My Schedule&quot; to see your upcoming sessions.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </section>
+
+        <section className="space-y-3">
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Attendance</h3>
+          <div className="grid gap-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
-                  Pending Confirmations
+                  Attendance Records Today
                 </CardTitle>
                 <ClipboardList className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{pendingConfirmations.length}</div>
+                <div className="text-2xl font-bold">{attendanceRecordsToday}/{todaySessions}</div>
                 <p className="text-xs text-muted-foreground">
-                  sessions to confirm
+                  recorded attendance / expected sessions
                 </p>
               </CardContent>
             </Card>
-          </>
-        )}
+          </div>
+        </section>
+      </div>
 
-        {canViewFinancials && (
-          <>
+      {(canViewAll || (canVerify && pendingConfirmations.length > 0)) && (
+        <section className="space-y-3">
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Confirmations</h3>
+          {canViewAll && (
+            <div className="grid gap-4 md:grid-cols-2">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">
+                    Pending Confirmations
+                  </CardTitle>
+                  <ClipboardList className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{pendingConfirmations.length}</div>
+                  <p className="text-xs text-muted-foreground">
+                    sessions to confirm
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+          {canVerify && pendingConfirmations.length > 0 && (
+            <PendingConfirmationsCard sessions={pendingConfirmations} />
+          )}
+        </section>
+      )}
+
+      {canViewFinancials && (
+        <section className="space-y-3">
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Payments</h3>
+          <div className="grid gap-4 md:grid-cols-2">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
@@ -169,43 +207,21 @@ export default async function DashboardPage() {
                 </p>
               </CardContent>
             </Card>
-          </>
-        )}
-      </div>
 
-      {canViewFinancials && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Financial Summary</CardTitle>
-            <CardDescription>
-              Reports data is consolidated into dashboard for daily operations.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-1 text-sm text-muted-foreground">
-            <p>Collected today: {formatCurrency(dailyRevenue)}</p>
-            <p>Expected income today: {formatCurrency(expectedIncomeToday)}</p>
-          </CardContent>
-        </Card>
-      )}
-
-      {canVerify && pendingConfirmations.length > 0 && (
-        <PendingConfirmationsCard sessions={pendingConfirmations} />
-      )}
-
-      {isTherapistUser && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
-            <CardDescription>
-              Access your most common tasks
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              View your schedule in &quot;My Schedule&quot; to see your upcoming sessions.
-            </p>
-          </CardContent>
-        </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>Financial Summary</CardTitle>
+                <CardDescription>
+                  Reports data is consolidated into dashboard for daily operations.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-1 text-sm text-muted-foreground">
+                <p>Collected today: {formatCurrency(dailyRevenue)}</p>
+                <p>Expected income today: {formatCurrency(expectedIncomeToday)}</p>
+              </CardContent>
+            </Card>
+          </div>
+        </section>
       )}
     </div>
   );
