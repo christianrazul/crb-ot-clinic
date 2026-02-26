@@ -15,6 +15,19 @@ export type ActionState = {
   data?: unknown;
 };
 
+export type TherapistDailyReport = {
+  therapistRate: number;
+  expectedSessionCount: number;
+  actualSessionCount: number;
+  expectedIncome: number;
+  actualIncome: number;
+  sessions: {
+    id: string;
+    patientName: string;
+    scheduledTime: string;
+  }[];
+};
+
 function buildFallbackClient(clientName?: string | null) {
   return {
     id: "",
@@ -76,6 +89,93 @@ export async function getSessions(date: Date, clinicId?: string) {
   });
 
   return { data: sessions.map(normalizeSessionClient) };
+}
+
+export async function getTherapistDailyReport(clinicId?: string): Promise<ActionState & { data?: TherapistDailyReport }> {
+  const session = await auth();
+  if (!session?.user || !isTherapist(session.user.role)) {
+    return { error: "Unauthorized" };
+  }
+
+  const dayStart = startOfDay(new Date());
+  const dayEnd = endOfDay(new Date());
+
+  const effectiveClinicId = clinicId || session.user.primaryClinicId || undefined;
+
+  const sessions = await db.session.findMany({
+    where: {
+      therapistId: session.user.id,
+      scheduledDate: {
+        gte: dayStart,
+        lte: dayEnd,
+      },
+      status: {
+        not: SessionStatus.cancelled,
+      },
+      ...(effectiveClinicId && { clinicId: effectiveClinicId }),
+    },
+    select: {
+      id: true,
+      clientName: true,
+      scheduledTime: true,
+      verifiedAt: true,
+      clinicId: true,
+      verifiedBy: {
+        select: {
+          role: true,
+        },
+      },
+      client: {
+        select: {
+          firstName: true,
+          lastName: true,
+        },
+      },
+    },
+    orderBy: { scheduledTime: "asc" },
+  });
+
+  const rateClinicId = effectiveClinicId || sessions[0]?.clinicId;
+  let therapistRate = 0;
+
+  if (rateClinicId) {
+    const now = new Date();
+    const rate = await db.sessionRate.findFirst({
+      where: {
+        clinicId: rateClinicId,
+        therapistType: session.user.role,
+        effectiveFrom: { lte: now },
+        OR: [{ effectiveTo: null }, { effectiveTo: { gte: now } }],
+      },
+      orderBy: { effectiveFrom: "desc" },
+    });
+
+    therapistRate = rate ? Number(rate.ratePerSession) : 0;
+  }
+
+  const expectedSessionCount = sessions.length;
+  const actualSessionCount = sessions.filter(
+    (sessionRow) => Boolean(sessionRow.verifiedAt) && sessionRow.verifiedBy?.role === "secretary"
+  ).length;
+  const expectedIncome = therapistRate * expectedSessionCount;
+  const actualIncome = therapistRate * actualSessionCount;
+
+  return {
+    data: {
+      therapistRate,
+      expectedSessionCount,
+      actualSessionCount,
+      expectedIncome,
+      actualIncome,
+      sessions: sessions.map((sessionRow) => ({
+        id: sessionRow.id,
+        patientName: sessionRow.client
+          ? `${sessionRow.client.firstName} ${sessionRow.client.lastName}`
+          : sessionRow.clientName || "New client",
+        scheduledTime: sessionRow.scheduledTime,
+      })),
+    },
+  };
 }
 
 export async function getSessionsInRange(startDate: Date, endDate: Date, clinicId?: string) {
