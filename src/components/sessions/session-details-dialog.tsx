@@ -33,6 +33,7 @@ export interface SessionWithDetails {
   scheduledDate: Date;
   scheduledTime: string;
   durationMinutes: number;
+  sessionType: "regular" | "ot_evaluation" | "make_up";
   status: SessionStatus;
   startedAt: Date | null;
   clinic: { id: string; name: string; code: string };
@@ -69,6 +70,12 @@ const statusLabels: Record<SessionStatus, string> = {
   completed: "Completed",
   cancelled: "Cancelled",
   no_show: "No Show",
+};
+
+const sessionTypeLabels: Record<SessionWithDetails["sessionType"], string> = {
+  regular: "Regular Session",
+  ot_evaluation: "OT Evaluation",
+  make_up: "Make Up Session",
 };
 
 export function SessionDetailsDialog({
@@ -112,9 +119,12 @@ export function SessionDetailsDialog({
           <DialogHeader>
             <DialogTitle className="flex items-center justify-between">
               <span>Session Details</span>
-              <Badge className={statusColors[session.status]}>
-                {statusLabels[session.status]}
-              </Badge>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline">{sessionTypeLabels[session.sessionType]}</Badge>
+                <Badge className={statusColors[session.status]}>
+                  {statusLabels[session.status]}
+                </Badge>
+              </div>
             </DialogTitle>
           </DialogHeader>
 
