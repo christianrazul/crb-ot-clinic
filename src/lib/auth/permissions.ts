@@ -90,9 +90,9 @@ export function canAccessClinic(
 
 export const roleLabels: Record<UserRole, string> = {
   owner: "Owner",
-  secretary: "Secretary",
-  licensed_ot: "Licensed OT",
-  unlicensed_ot: "Unlicensed OT",
+  secretary: "Clinic Secretary",
+  licensed_ot: "Occupational Therapist",
+  unlicensed_ot: "Occupational Therapist Aide",
   st: "Speech Therapist",
 };
 
