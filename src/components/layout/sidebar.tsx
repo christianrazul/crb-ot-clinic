@@ -23,6 +23,7 @@ import { signOut } from "next-auth/react";
 interface SidebarProps {
   userRole: string;
   pendingConfirmationsCount?: number;
+  isOpen: boolean;
 }
 
 interface NavItem {
@@ -89,7 +90,11 @@ const navItems: NavItem[] = [
   },
 ];
 
-export function Sidebar({ userRole, pendingConfirmationsCount = 0 }: SidebarProps) {
+export function Sidebar({
+  userRole,
+  pendingConfirmationsCount = 0,
+  isOpen,
+}: SidebarProps) {
   const pathname = usePathname();
 
   const filteredNavItems = navItems.filter((item) => {
@@ -103,7 +108,13 @@ export function Sidebar({ userRole, pendingConfirmationsCount = 0 }: SidebarProp
   });
 
   return (
-    <div className="flex h-full w-64 flex-col border-r bg-background">
+    <div
+      className={cn(
+        "h-full w-64 flex-col border-r bg-background",
+        isOpen ? "flex" : "hidden",
+        "md:flex"
+      )}
+    >
       <div className="flex h-14 items-center border-b px-4">
         <Link href="/dashboard" className="flex items-center gap-2 font-semibold">
           <span className="text-lg">CRB OT Clinic</span>
