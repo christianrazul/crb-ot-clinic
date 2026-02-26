@@ -4,10 +4,12 @@ import { db } from "@/lib/db";
 import { hasPermission, isTherapist } from "@/lib/auth/permissions";
 import { getDailyRevenue } from "@/actions/payments";
 import { getExpectedIncomeToday } from "@/actions/attendance";
+import { getTherapistDailyReport } from "@/actions/sessions";
 import { DashboardClinicSelector } from "./clinic-selector";
 import { format } from "date-fns";
 import { Calendar, ClipboardList, DollarSign } from "lucide-react";
 import { PendingConfirmationsCard } from "@/components/dashboard/pending-confirmations-card";
+import { DailyReportCard } from "@/components/dashboard/daily-report-card";
 
 interface DashboardPageProps {
   searchParams: Promise<{ clinicId?: string }>;
@@ -50,14 +52,21 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const selectedClinic = clinics.find((clinic) => clinic.id === params.clinicId);
   const selectedClinicId = selectedClinic?.id || (canUseAllClinics ? undefined : user.primaryClinicId || clinics[0].id);
 
-  const [todaySessions, attendanceRecordsToday, pendingConfirmations, dailyRevenueResult, expectedIncomeResult] = await Promise.all([
+  const [
+    todaySessions,
+    attendanceRecordsToday,
+    pendingConfirmations,
+    dailyRevenueResult,
+    expectedIncomeResult,
+    therapistDailyReportResult,
+  ] = await Promise.all([
     db.session.count({
       where: {
         scheduledDate: {
           gte: today,
           lt: tomorrow,
         },
-        status: "scheduled",
+        status: { not: "cancelled" },
         ...(isTherapistUser && { therapistId: user.id }),
         ...(canViewAll && selectedClinicId && { clinicId: selectedClinicId }),
       },
@@ -92,10 +101,16 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       : [],
     canViewFinancials ? getDailyRevenue(new Date(), selectedClinicId) : { data: 0 },
     canViewFinancials ? getExpectedIncomeToday(selectedClinicId) : { data: 0 },
+    isTherapistUser ? getTherapistDailyReport(selectedClinicId) : { data: undefined },
   ]);
 
   const dailyRevenue = dailyRevenueResult.data || 0;
   const expectedIncomeToday = expectedIncomeResult.data || 0;
+  const hasTherapistDailyReportError =
+    "error" in therapistDailyReportResult && Boolean(therapistDailyReportResult.error);
+  const therapistDailyReport = isTherapistUser && !hasTherapistDailyReportError
+    ? therapistDailyReportResult.data
+    : undefined;
 
   function formatCurrency(amount: number): string {
     return new Intl.NumberFormat("en-PH", {
@@ -141,21 +156,6 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
               </CardContent>
             </Card>
 
-            {isTherapistUser && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Quick Actions</CardTitle>
-                  <CardDescription>
-                    Access your most common tasks
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">
-                    View your schedule in &quot;My Schedule&quot; to see your upcoming sessions.
-                  </p>
-                </CardContent>
-              </Card>
-            )}
           </div>
         </section>
 
@@ -179,6 +179,23 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           </div>
         </section>
       </div>
+
+      {isTherapistUser && (
+        <section className="space-y-3">
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Daily Report</h3>
+          {therapistDailyReport ? (
+            <DailyReportCard report={therapistDailyReport} />
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardDescription>
+                  Unable to load report for today.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          )}
+        </section>
+      )}
 
       {(canViewAll || (canVerify && pendingConfirmations.length > 0)) && (
         <section className="space-y-3">
