@@ -60,6 +60,7 @@ interface CreateSessionDialogProps {
   therapists: Therapist[];
   defaultDate?: string;
   userRole?: string;
+  userPrimaryClinicId?: string | null;
 }
 
 const initialState: ActionState = {};
@@ -80,9 +81,17 @@ export function CreateSessionDialog({
   clients,
   therapists,
   defaultDate,
+  userRole,
+  userPrimaryClinicId,
 }: CreateSessionDialogProps) {
+  const shouldAutoSelectClinic =
+    userRole !== UserRole.owner &&
+    userRole !== "superadmin" &&
+    !!userPrimaryClinicId;
+  const defaultClinicId = shouldAutoSelectClinic ? userPrimaryClinicId! : "";
+
   const [open, setOpen] = useState(false);
-  const [selectedClinic, setSelectedClinic] = useState<string>("");
+  const [selectedClinic, setSelectedClinic] = useState<string>(defaultClinicId);
   const [selectedClient, setSelectedClient] = useState<string>("");
   const [selectedTherapist, setSelectedTherapist] = useState<string>("");
   const [singleState, singleFormAction] = useFormState(
@@ -97,12 +106,16 @@ export function CreateSessionDialog({
   // Multiple sessions state
   const [selectedDates, setSelectedDates] = useState<Date[]>([]);
 
+  useEffect(() => {
+    setSelectedClinic(defaultClinicId);
+  }, [defaultClinicId]);
+
   const resetForm = useCallback(() => {
-    setSelectedClinic("");
+    setSelectedClinic(defaultClinicId);
     setSelectedClient("");
     setSelectedTherapist("");
     setSelectedDates([]);
-  }, []);
+  }, [defaultClinicId]);
 
   useEffect(() => {
     if (singleState.success || multipleState.success) {
