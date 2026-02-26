@@ -4,13 +4,19 @@ import { db } from "@/lib/db";
 import { hasPermission, isTherapist } from "@/lib/auth/permissions";
 import { getDailyRevenue } from "@/actions/payments";
 import { getExpectedIncomeToday } from "@/actions/attendance";
+import { DashboardClinicSelector } from "./clinic-selector";
 import { format } from "date-fns";
 import { Calendar, ClipboardList, DollarSign } from "lucide-react";
 import { PendingConfirmationsCard } from "@/components/dashboard/pending-confirmations-card";
 
-export default async function DashboardPage() {
+interface DashboardPageProps {
+  searchParams: Promise<{ clinicId?: string }>;
+}
+
+export default async function DashboardPage({ searchParams }: DashboardPageProps) {
   const session = await auth();
   const user = session?.user;
+  const params = await searchParams;
 
   if (!user) return null;
 
@@ -25,6 +31,25 @@ export default async function DashboardPage() {
   const canVerify = hasPermission(user.role, "verify_sessions");
   const canViewFinancials = hasPermission(user.role, "view_financial_reports");
 
+  const clinics = await db.clinic.findMany({
+    where: {
+      isActive: true,
+      ...(user.primaryClinicId && { id: user.primaryClinicId }),
+    },
+    select: {
+      id: true,
+      name: true,
+      code: true,
+    },
+    orderBy: { name: "asc" },
+  });
+
+  if (clinics.length === 0) return null;
+
+  const canUseAllClinics = canViewAll && !user.primaryClinicId;
+  const selectedClinic = clinics.find((clinic) => clinic.id === params.clinicId);
+  const selectedClinicId = selectedClinic?.id || (canUseAllClinics ? undefined : user.primaryClinicId || clinics[0].id);
+
   const [todaySessions, attendanceRecordsToday, pendingConfirmations, dailyRevenueResult, expectedIncomeResult] = await Promise.all([
     db.session.count({
       where: {
@@ -34,7 +59,7 @@ export default async function DashboardPage() {
         },
         status: "scheduled",
         ...(isTherapistUser && { therapistId: user.id }),
-        ...(canViewAll && user.primaryClinicId && { clinicId: user.primaryClinicId }),
+        ...(canViewAll && selectedClinicId && { clinicId: selectedClinicId }),
       },
     }),
     db.attendanceLog.count({
@@ -44,7 +69,7 @@ export default async function DashboardPage() {
           lt: tomorrow,
         },
         ...(isTherapistUser && { primaryTherapistId: user.id }),
-        ...(canViewAll && user.primaryClinicId && { clinicId: user.primaryClinicId }),
+        ...(canViewAll && selectedClinicId && { clinicId: selectedClinicId }),
       },
     }),
     canVerify
@@ -53,7 +78,8 @@ export default async function DashboardPage() {
             status: "in_progress",
             startedAt: { not: null },
             verifiedAt: null,
-            ...(user.primaryClinicId && { clinicId: user.primaryClinicId }),
+            ...(canViewAll && selectedClinicId && { clinicId: selectedClinicId }),
+            ...(!canViewAll && user.primaryClinicId && { clinicId: user.primaryClinicId }),
           },
           include: {
             clinic: { select: { id: true, name: true, code: true } },
@@ -64,8 +90,8 @@ export default async function DashboardPage() {
           orderBy: { startedAt: "asc" },
         })
       : [],
-    canViewFinancials ? getDailyRevenue(new Date()) : { data: 0 },
-    canViewFinancials ? getExpectedIncomeToday() : { data: 0 },
+    canViewFinancials ? getDailyRevenue(new Date(), selectedClinicId) : { data: 0 },
+    canViewFinancials ? getExpectedIncomeToday(selectedClinicId) : { data: 0 },
   ]);
 
   const dailyRevenue = dailyRevenueResult.data || 0;
@@ -84,9 +110,16 @@ export default async function DashboardPage() {
         <h2 className="text-2xl font-bold tracking-tight">
           Welcome back, {user.name?.split(" ")[0]}
         </h2>
-        <p className="text-muted-foreground">
-          {format(new Date(), "EEEE, MMMM d, yyyy")}
-        </p>
+        <div className="mt-1 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-muted-foreground">
+            {format(new Date(), "EEEE, MMMM d, yyyy")}
+          </p>
+          <DashboardClinicSelector
+            clinics={clinics}
+            selectedClinicId={selectedClinicId}
+            allowAllClinics={canUseAllClinics}
+          />
+        </div>
       </div>
 
       <div className="grid gap-6 xl:grid-cols-2">
