@@ -59,6 +59,7 @@ export default async function SchedulePage({ searchParams }: PageProps) {
           therapists={therapists}
           defaultDate={format(selectedDate, "yyyy-MM-dd")}
           userRole={session.user.role}
+          userPrimaryClinicId={session.user.primaryClinicId}
         />
       </div>
 
