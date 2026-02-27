@@ -28,6 +28,18 @@ export type TherapistDailyReport = {
   }[];
 };
 
+export type SecretaryDailyReport = {
+  totalExpectedIncome: number;
+  actualReceivedIncome: number;
+  sessions: {
+    id: string;
+    patientName: string;
+    therapistName: string;
+    sessionType: string;
+    scheduledTime: string;
+  }[];
+};
+
 function buildFallbackClient(clientName?: string | null) {
   return {
     id: "",
@@ -55,6 +67,12 @@ function normalizeSessionClient<T extends { client: NormalizedClient | null; cli
     ...session,
     client: session.client ?? buildFallbackClient(session.clientName),
   };
+}
+
+function buildDisplayName(person?: { firstName?: string | null; lastName?: string | null } | null, fallback = "") {
+  if (!person) return fallback;
+  const fullName = [person.firstName, person.lastName].filter(Boolean).join(" ").trim();
+  return fullName || fallback;
 }
 
 export async function getSessions(date: Date, clinicId?: string) {
@@ -172,6 +190,110 @@ export async function getTherapistDailyReport(clinicId?: string): Promise<Action
         patientName: sessionRow.client
           ? `${sessionRow.client.firstName} ${sessionRow.client.lastName}`
           : sessionRow.clientName || "New client",
+        scheduledTime: sessionRow.scheduledTime,
+      })),
+    },
+  };
+}
+
+export async function getSecretaryDailyReport(clinicId?: string): Promise<ActionState & { data?: SecretaryDailyReport }> {
+  const session = await auth();
+  if (!session?.user || session.user.role !== "secretary") {
+    return { error: "Unauthorized" };
+  }
+
+  const dayStart = startOfDay(new Date());
+  const dayEnd = endOfDay(new Date());
+
+  const effectiveClinicId = clinicId || session.user.primaryClinicId || undefined;
+
+  const sessions = await db.session.findMany({
+    where: {
+      scheduledDate: {
+        gte: dayStart,
+        lte: dayEnd,
+      },
+      status: {
+        not: SessionStatus.cancelled,
+      },
+      ...(effectiveClinicId && { clinicId: effectiveClinicId }),
+    },
+    select: {
+      id: true,
+      clinicId: true,
+      clientName: true,
+      sessionType: true,
+      scheduledTime: true,
+      verifiedAt: true,
+      verifiedBy: {
+        select: {
+          role: true,
+        },
+      },
+      client: {
+        select: {
+          firstName: true,
+          lastName: true,
+        },
+      },
+      therapist: {
+        select: {
+          role: true,
+          firstName: true,
+          lastName: true,
+        },
+      },
+    },
+    orderBy: { scheduledTime: "asc" },
+  });
+
+  const clinicIds = Array.from(new Set(sessions.map((sessionRow) => sessionRow.clinicId)));
+  const therapistRoles = Array.from(new Set(sessions.map((sessionRow) => sessionRow.therapist.role)));
+  const now = new Date();
+
+  const rateRows = clinicIds.length > 0 && therapistRoles.length > 0
+    ? await db.sessionRate.findMany({
+        where: {
+          clinicId: { in: clinicIds },
+          therapistType: { in: therapistRoles },
+          effectiveFrom: { lte: now },
+          OR: [{ effectiveTo: null }, { effectiveTo: { gte: now } }],
+        },
+        orderBy: { effectiveFrom: "desc" },
+      })
+    : [];
+
+  const rateByClinicAndRole = new Map<string, number>();
+  for (const rateRow of rateRows) {
+    const key = `${rateRow.clinicId}:${rateRow.therapistType}`;
+    if (!rateByClinicAndRole.has(key)) {
+      rateByClinicAndRole.set(key, Number(rateRow.ratePerSession));
+    }
+  }
+
+  let totalExpectedIncome = 0;
+  let actualReceivedIncome = 0;
+
+  for (const sessionRow of sessions) {
+    const rateKey = `${sessionRow.clinicId}:${sessionRow.therapist.role}`;
+    const sessionRate = rateByClinicAndRole.get(rateKey) || 0;
+
+    totalExpectedIncome += sessionRate;
+
+    if (sessionRow.verifiedAt && sessionRow.verifiedBy?.role === "secretary") {
+      actualReceivedIncome += sessionRate;
+    }
+  }
+
+  return {
+    data: {
+      totalExpectedIncome,
+      actualReceivedIncome,
+      sessions: sessions.map((sessionRow) => ({
+        id: sessionRow.id,
+        patientName: buildDisplayName(sessionRow.client, sessionRow.clientName || "New client"),
+        therapistName: buildDisplayName(sessionRow.therapist, "Unassigned"),
+        sessionType: sessionRow.sessionType,
         scheduledTime: sessionRow.scheduledTime,
       })),
     },

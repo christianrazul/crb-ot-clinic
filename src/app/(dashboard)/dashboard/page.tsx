@@ -4,12 +4,13 @@ import { db } from "@/lib/db";
 import { hasPermission, isTherapist } from "@/lib/auth/permissions";
 import { getDailyRevenue } from "@/actions/payments";
 import { getExpectedIncomeToday } from "@/actions/attendance";
-import { getTherapistDailyReport } from "@/actions/sessions";
+import { getSecretaryDailyReport, getTherapistDailyReport } from "@/actions/sessions";
 import { DashboardClinicSelector } from "./clinic-selector";
 import { format } from "date-fns";
 import { Calendar, ClipboardList, DollarSign } from "lucide-react";
 import { PendingConfirmationsCard } from "@/components/dashboard/pending-confirmations-card";
 import { DailyReportCard } from "@/components/dashboard/daily-report-card";
+import { SecretaryDailyReportCard } from "@/components/dashboard/secretary-daily-report-card";
 
 interface DashboardPageProps {
   searchParams: Promise<{ clinicId?: string }>;
@@ -29,6 +30,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
 
   const canViewAll = hasPermission(user.role, "view_all_sessions");
   const isTherapistUser = isTherapist(user.role);
+  const isSecretaryUser = user.role === "secretary";
 
   const canVerify = hasPermission(user.role, "verify_sessions");
   const canViewFinancials = hasPermission(user.role, "view_financial_reports");
@@ -59,6 +61,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     dailyRevenueResult,
     expectedIncomeResult,
     therapistDailyReportResult,
+    secretaryDailyReportResult,
   ] = await Promise.all([
     db.session.count({
       where: {
@@ -102,14 +105,20 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     canViewFinancials ? getDailyRevenue(new Date(), selectedClinicId) : { data: 0 },
     canViewFinancials ? getExpectedIncomeToday(selectedClinicId) : { data: 0 },
     isTherapistUser ? getTherapistDailyReport(selectedClinicId) : { data: undefined },
+    isSecretaryUser ? getSecretaryDailyReport(selectedClinicId) : { data: undefined },
   ]);
 
   const dailyRevenue = dailyRevenueResult.data || 0;
   const expectedIncomeToday = expectedIncomeResult.data || 0;
   const hasTherapistDailyReportError =
     "error" in therapistDailyReportResult && Boolean(therapistDailyReportResult.error);
+  const hasSecretaryDailyReportError =
+    "error" in secretaryDailyReportResult && Boolean(secretaryDailyReportResult.error);
   const therapistDailyReport = isTherapistUser && !hasTherapistDailyReportError
     ? therapistDailyReportResult.data
+    : undefined;
+  const secretaryDailyReport = isSecretaryUser && !hasSecretaryDailyReportError
+    ? secretaryDailyReportResult.data
     : undefined;
 
   function formatCurrency(amount: number): string {
@@ -180,11 +189,13 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         </section>
       </div>
 
-      {isTherapistUser && (
+      {(isTherapistUser || isSecretaryUser) && (
         <section className="space-y-3">
           <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Daily Report</h3>
-          {therapistDailyReport ? (
+          {isTherapistUser && therapistDailyReport ? (
             <DailyReportCard report={therapistDailyReport} />
+          ) : isSecretaryUser && secretaryDailyReport ? (
+            <SecretaryDailyReportCard report={secretaryDailyReport} />
           ) : (
             <Card>
               <CardHeader>
