@@ -7,7 +7,7 @@ import { hasPermission, canAccessClinic } from "@/lib/auth/permissions";
 import { logAttendanceSchema } from "@/lib/validations/attendance";
 import { createAuditLog } from "@/lib/audit";
 import { startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from "date-fns";
-import { PaymentMethod, PaymentStatus, PaymentSource, CreditType, UserRole, AttendancePaymentStatus } from "@prisma/client";
+import { PaymentMethod, PaymentStatus, PaymentSource, CreditType, UserRole, AttendancePaymentStatus, SessionStatus } from "@prisma/client";
 
 export type ActionState = {
   error?: string;
@@ -65,6 +65,33 @@ async function resolveAttendanceRate(
   return Number(rate?.ratePerSession || 0);
 }
 
+async function findTodaySessionForClient(
+  clinicId: string,
+  clientId: string,
+  date: Date
+): Promise<string | null> {
+  const dayStart = startOfDay(date);
+  const dayEnd = endOfDay(date);
+
+  const session = await db.session.findFirst({
+    where: {
+      clinicId,
+      clientId,
+      scheduledDate: {
+        gte: dayStart,
+        lte: dayEnd,
+      },
+      status: {
+        in: [SessionStatus.scheduled, SessionStatus.in_progress],
+      },
+    },
+    orderBy: { scheduledTime: "asc" },
+    select: { id: true },
+  });
+
+  return session?.id || null;
+}
+
 export async function logAttendance(
   _prevState: ActionState,
   formData: FormData
@@ -95,10 +122,19 @@ export async function logAttendance(
     return { error: "You can only log attendance for your assigned clinic" };
   }
 
+  const now = new Date();
+  const explicitSessionId = (formData.get("sessionId") as string | null)?.trim() || null;
+  const sessionId = explicitSessionId || await findTodaySessionForClient(
+    parsed.data.clinicId,
+    parsed.data.clientId,
+    now
+  );
+
   const attendanceLog = await db.attendanceLog.create({
     data: {
       clinicId: parsed.data.clinicId,
       clientId: parsed.data.clientId,
+      sessionId,
       guardianName: parsed.data.guardianName,
       guardianRelation: parsed.data.guardianRelation || null,
       primaryTherapistId: parsed.data.primaryTherapistId || null,
@@ -124,7 +160,7 @@ export async function logAttendance(
 
   revalidatePath("/attendance");
   revalidatePath("/dashboard");
-  return { success: true };
+  return { success: true, data: { sessionId } };
 }
 
 export type DateFilter = "today" | "week" | "month" | "all";
@@ -357,6 +393,39 @@ export async function getExpectedIncomeToday(clinicId?: string) {
   }
 
   return { data: totalExpectedIncome };
+}
+
+export async function getClientTodaySessions(clientId: string, clinicId: string) {
+  const session = await auth();
+  if (!session?.user) {
+    return { error: "Unauthorized" };
+  }
+
+  const now = new Date();
+  const dayStart = startOfDay(now);
+  const dayEnd = endOfDay(now);
+
+  const sessions = await db.session.findMany({
+    where: {
+      clinicId,
+      clientId,
+      scheduledDate: {
+        gte: dayStart,
+        lte: dayEnd,
+      },
+      status: {
+        in: [SessionStatus.scheduled, SessionStatus.in_progress],
+      },
+    },
+    include: {
+      therapist: {
+        select: { id: true, firstName: true, lastName: true },
+      },
+    },
+    orderBy: { scheduledTime: "asc" },
+  });
+
+  return { data: sessions };
 }
 
 export async function getClientsForAttendance(clinicId?: string) {

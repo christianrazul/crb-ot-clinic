@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth/auth";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { SessionProvider } from "next-auth/react";
-import { getPendingConfirmationsCount } from "@/actions/sessions";
+import { getPendingConfirmationsCountForUser } from "@/actions/sessions";
 
 export default async function DashboardLayout({
   children,
@@ -15,7 +15,9 @@ export default async function DashboardLayout({
     redirect("/login");
   }
 
-  const pendingConfirmationsCount = await getPendingConfirmationsCount();
+  const pendingConfirmationsCount = await getPendingConfirmationsCountForUser(
+    session.user
+  );
 
   return (
     <SessionProvider session={session}>

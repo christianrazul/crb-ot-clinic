@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { roleLabels, isTherapist as checkIsTherapist } from "@/lib/auth/permissions";
 import { formatTime12hr } from "@/lib/utils";
-import { startSession } from "@/actions/sessions";
+import { startSession, completeSession } from "@/actions/sessions";
 import { CancelSessionDialog } from "./cancel-session-dialog";
 
 export interface SessionWithDetails {
@@ -86,7 +86,9 @@ export function SessionDetailsDialog({
   currentUserRole,
 }: SessionDetailsDialogProps) {
   const [isStarting, setIsStarting] = useState(false);
+  const [isCompleting, setIsCompleting] = useState(false);
   const [startConfirmOpen, setStartConfirmOpen] = useState(false);
+  const [completeConfirmOpen, setCompleteConfirmOpen] = useState(false);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
 
   if (!session) return null;
@@ -94,6 +96,7 @@ export function SessionDetailsDialog({
   const isTherapistUser = checkIsTherapist(currentUserRole);
   const isOwnSession = session.therapist.id === currentUserId;
   const canStart = (isTherapistUser && isOwnSession) || !isTherapistUser;
+  const canComplete = (isTherapistUser && isOwnSession) || !isTherapistUser;
   const canCancel = (isTherapistUser && isOwnSession) || !isTherapistUser;
   const showDiagnosis = isTherapistUser || currentUserRole === "owner";
 
@@ -102,6 +105,16 @@ export function SessionDetailsDialog({
     const result = await startSession(session!.id);
     setIsStarting(false);
     setStartConfirmOpen(false);
+    if (result.success) {
+      onOpenChange(false);
+    }
+  }
+
+  async function handleCompleteSession() {
+    setIsCompleting(true);
+    const result = await completeSession(session!.id);
+    setIsCompleting(false);
+    setCompleteConfirmOpen(false);
     if (result.success) {
       onOpenChange(false);
     }
@@ -211,6 +224,20 @@ export function SessionDetailsDialog({
                 </div>
               </>
             )}
+
+            {session.status === "in_progress" && canComplete && (
+              <>
+                <Separator />
+                <div className="flex gap-2">
+                  <Button
+                    className="flex-1"
+                    onClick={() => setCompleteConfirmOpen(true)}
+                  >
+                    Complete Session
+                  </Button>
+                </div>
+              </>
+            )}
           </div>
         </DialogContent>
       </Dialog>
@@ -231,6 +258,27 @@ export function SessionDetailsDialog({
             <AlertDialogCancel disabled={isStarting}>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleStartSession} disabled={isStarting}>
               {isStarting ? "Starting..." : "Start Session"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={completeConfirmOpen} onOpenChange={setCompleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Complete Session</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to mark this session with{" "}
+              <strong>
+                {session.client.firstName} {session.client.lastName}
+              </strong>
+              {" "}as completed? The secretary will need to verify completion before payment can be collected.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isCompleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleCompleteSession} disabled={isCompleting}>
+              {isCompleting ? "Completing..." : "Complete Session"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

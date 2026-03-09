@@ -24,17 +24,17 @@ import {
 } from "@/components/ui/select";
 import { roleLabels } from "@/lib/auth/permissions";
 import { formatTime12hr } from "@/lib/utils";
-import { confirmSessionStart } from "@/actions/sessions";
+import { verifySessionCompletion } from "@/actions/sessions";
 
 interface Session {
   id: string;
   scheduledDate: Date;
   scheduledTime: string;
-  startedAt: Date | null;
+  completedAt: Date | null;
   clinic: { id: string; name: string; code: string };
   client: { id: string; firstName: string; lastName: string };
   therapist: { id: string; firstName: string; lastName: string; role: UserRole };
-  startedBy: { id: string; firstName: string; lastName: string } | null;
+  completedBy: { id: string; firstName: string; lastName: string } | null;
 }
 
 interface Clinic {
@@ -68,9 +68,9 @@ export function ConfirmationsView({
     router.push(`/confirmations?${params.toString()}`);
   }
 
-  async function handleConfirm(sessionId: string) {
+  async function handleVerify(sessionId: string) {
     setConfirmingIds((prev) => new Set(prev).add(sessionId));
-    await confirmSessionStart(sessionId);
+    await verifySessionCompletion(sessionId);
     setConfirmingIds((prev) => {
       const next = new Set(prev);
       next.delete(sessionId);
@@ -82,7 +82,7 @@ export function ConfirmationsView({
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="text-sm text-muted-foreground">
-          {sessions.length} session{sessions.length !== 1 ? "s" : ""} pending confirmation
+          {sessions.length} session{sessions.length !== 1 ? "s" : ""} pending verification
         </div>
 
         <Select
@@ -112,7 +112,7 @@ export function ConfirmationsView({
               <TableHead>Client</TableHead>
               <TableHead>Therapist</TableHead>
               <TableHead>Clinic</TableHead>
-              <TableHead>Started At</TableHead>
+              <TableHead>Completed At</TableHead>
               <TableHead className="w-[100px]"></TableHead>
             </TableRow>
           </TableHeader>
@@ -120,7 +120,7 @@ export function ConfirmationsView({
             {sessions.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={7} className="text-center text-muted-foreground">
-                  No sessions pending confirmation
+                  No sessions pending verification
                 </TableCell>
               </TableRow>
             ) : (
@@ -145,17 +145,17 @@ export function ConfirmationsView({
                     <Badge variant="outline">{session.clinic.code}</Badge>
                   </TableCell>
                   <TableCell>
-                    {session.startedAt && (
+                    {session.completedAt && (
                       <div className="flex items-center gap-1 text-xs text-muted-foreground">
                         <Clock className="h-3 w-3" />
-                        {format(new Date(session.startedAt), "h:mm a")}
+                        {format(new Date(session.completedAt), "h:mm a")}
                       </div>
                     )}
                   </TableCell>
                   <TableCell>
                     <Button
                       size="sm"
-                      onClick={() => handleConfirm(session.id)}
+                      onClick={() => handleVerify(session.id)}
                       disabled={confirmingIds.has(session.id)}
                     >
                       {confirmingIds.has(session.id) ? (
@@ -163,7 +163,7 @@ export function ConfirmationsView({
                       ) : (
                         <>
                           <Check className="mr-1 h-3 w-3" />
-                          Confirm
+                          Verify
                         </>
                       )}
                     </Button>

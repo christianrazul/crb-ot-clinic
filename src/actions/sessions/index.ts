@@ -40,6 +40,11 @@ export type SecretaryDailyReport = {
   }[];
 };
 
+type PendingConfirmationsUser = {
+  role: string;
+  primaryClinicId?: string | null;
+};
+
 function buildFallbackClient(clientName?: string | null) {
   return {
     id: "",
@@ -719,7 +724,53 @@ export async function startSession(sessionId: string): Promise<ActionState> {
   return { success: true };
 }
 
-export async function confirmSessionStart(sessionId: string): Promise<ActionState> {
+export async function completeSession(sessionId: string): Promise<ActionState> {
+  const session = await auth();
+  if (!session?.user) {
+    return { error: "Unauthorized" };
+  }
+
+  const existingSession = await db.session.findUnique({
+    where: { id: sessionId },
+  });
+
+  if (!existingSession) {
+    return { error: "Session not found" };
+  }
+
+  const isTherapistUser = isTherapist(session.user.role);
+  const isOwnSession = existingSession.therapistId === session.user.id;
+  const canManage = hasPermission(session.user.role, "manage_sessions");
+
+  if (isTherapistUser && !isOwnSession) {
+    return { error: "You can only complete your own sessions" };
+  }
+
+  if (!isTherapistUser && !canManage) {
+    return { error: "Unauthorized" };
+  }
+
+  if (existingSession.status !== SessionStatus.in_progress) {
+    return { error: "Only in-progress sessions can be completed" };
+  }
+
+  await db.session.update({
+    where: { id: sessionId },
+    data: {
+      status: SessionStatus.completed,
+      completedAt: new Date(),
+      completedById: session.user.id,
+    },
+  });
+
+  revalidatePath("/schedule");
+  revalidatePath("/my-schedule");
+  revalidatePath("/sessions");
+  revalidatePath("/confirmations");
+  return { success: true };
+}
+
+export async function verifySessionCompletion(sessionId: string): Promise<ActionState> {
   const session = await auth();
   if (!session?.user || !hasPermission(session.user.role, "verify_sessions")) {
     return { error: "Unauthorized" };
@@ -733,16 +784,16 @@ export async function confirmSessionStart(sessionId: string): Promise<ActionStat
     return { error: "Session not found" };
   }
 
-  if (existingSession.status !== SessionStatus.in_progress) {
-    return { error: "Session must be in progress to confirm" };
+  if (existingSession.status !== SessionStatus.completed) {
+    return { error: "Session must be completed to verify" };
   }
 
-  if (!existingSession.startedAt) {
-    return { error: "Session has not been started" };
+  if (!existingSession.completedAt) {
+    return { error: "Session has not been completed by therapist" };
   }
 
   if (existingSession.verifiedAt) {
-    return { error: "Session has already been confirmed" };
+    return { error: "Session has already been verified" };
   }
 
   await db.session.update({
@@ -761,6 +812,10 @@ export async function confirmSessionStart(sessionId: string): Promise<ActionStat
   return { success: true };
 }
 
+export async function confirmSessionStart(sessionId: string): Promise<ActionState> {
+  return verifySessionCompletion(sessionId);
+}
+
 export async function getPendingConfirmations(clinicId?: string) {
   const session = await auth();
   if (!session?.user || !hasPermission(session.user.role, "verify_sessions")) {
@@ -769,8 +824,8 @@ export async function getPendingConfirmations(clinicId?: string) {
 
   const sessions = await db.session.findMany({
     where: {
-      status: SessionStatus.in_progress,
-      startedAt: { not: null },
+      status: SessionStatus.completed,
+      completedAt: { not: null },
       verifiedAt: null,
       ...(clinicId && { clinicId }),
       ...(session.user.primaryClinicId && !clinicId && {
@@ -781,9 +836,9 @@ export async function getPendingConfirmations(clinicId?: string) {
       clinic: { select: { id: true, name: true, code: true } },
       client: { select: { id: true, firstName: true, lastName: true } },
       therapist: { select: { id: true, firstName: true, lastName: true, role: true } },
-      startedBy: { select: { id: true, firstName: true, lastName: true } },
+      completedBy: { select: { id: true, firstName: true, lastName: true } },
     },
-    orderBy: { startedAt: "asc" },
+    orderBy: { completedAt: "asc" },
   });
 
   return { data: sessions.map(normalizeSessionClient) };
@@ -791,21 +846,35 @@ export async function getPendingConfirmations(clinicId?: string) {
 
 export async function getPendingConfirmationsCount(clinicId?: string) {
   const session = await auth();
-  if (!session?.user || !hasPermission(session.user.role, "verify_sessions")) {
+  if (!session?.user) {
     return 0;
   }
 
-  const count = await db.session.count({
-    where: {
-      status: SessionStatus.in_progress,
-      startedAt: { not: null },
-      verifiedAt: null,
-      ...(clinicId && { clinicId }),
-      ...(session.user.primaryClinicId && !clinicId && {
-        clinicId: session.user.primaryClinicId,
-      }),
-    },
-  });
+  return getPendingConfirmationsCountForUser(session.user, clinicId);
+}
 
-  return count;
+export async function getPendingConfirmationsCountForUser(
+  user: PendingConfirmationsUser,
+  clinicId?: string
+) {
+  if (!hasPermission(user.role, "verify_sessions")) {
+    return 0;
+  }
+
+  try {
+    return await db.session.count({
+      where: {
+        status: SessionStatus.completed,
+        completedAt: { not: null },
+        verifiedAt: null,
+        ...(clinicId && { clinicId }),
+        ...(user.primaryClinicId && !clinicId && {
+          clinicId: user.primaryClinicId,
+        }),
+      },
+    });
+  } catch (error) {
+    console.error("Failed to load pending confirmations count", error);
+    return 0;
+  }
 }

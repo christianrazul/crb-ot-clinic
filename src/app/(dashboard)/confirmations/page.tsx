@@ -31,9 +31,9 @@ export default async function ConfirmationsPage({ searchParams }: PageProps) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">Session Confirmations</h2>
+        <h2 className="text-2xl font-bold tracking-tight">Session Verifications</h2>
         <p className="text-muted-foreground">
-          Confirm sessions that therapists have started
+          Verify completed sessions before collecting payment
         </p>
       </div>
 

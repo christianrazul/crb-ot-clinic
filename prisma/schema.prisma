@@ -5,7 +5,6 @@ generator client {
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
 }
 
 enum UserRole {
@@ -124,6 +123,7 @@ model User {
   backupClients        BackupTherapist[]
   sessions             Session[]         @relation("Therapist")
   startedSessions      Session[]         @relation("SessionStarter")
+  completedSessions    Session[]         @relation("SessionCompleter")
   verifiedSessions     Session[]         @relation("Verifier")
   cancelledSessions    Session[]         @relation("Canceller")
   auditLogs            AuditLog[]
@@ -195,6 +195,9 @@ model Session {
   startedAt        DateTime?     @map("started_at")
   startedBy        User?         @relation("SessionStarter", fields: [startedById], references: [id])
   startedById      String?       @map("started_by_id")
+  completedAt      DateTime?     @map("completed_at")
+  completedBy      User?         @relation("SessionCompleter", fields: [completedById], references: [id])
+  completedById    String?       @map("completed_by_id")
   verifiedAt       DateTime?     @map("verified_at")
   verifiedBy       User?         @relation("Verifier", fields: [verifiedById], references: [id])
   verifiedById     String?       @map("verified_by")
@@ -205,7 +208,8 @@ model Session {
   createdAt        DateTime      @default(now()) @map("created_at")
   updatedAt        DateTime      @updatedAt @map("updated_at")
 
-  paymentSessions PaymentSession[]
+  paymentSessions  PaymentSession[]
+  attendanceLogs   AttendanceLog[]
 
   @@map("sessions")
 }
@@ -327,6 +331,8 @@ model AttendanceLog {
   clinicId           String   @map("clinic_id")
   client             Client   @relation(fields: [clientId], references: [id])
   clientId           String   @map("client_id")
+  session            Session? @relation(fields: [sessionId], references: [id])
+  sessionId          String?  @map("session_id")
   guardianName       String   @map("guardian_name")
   guardianRelation   String?  @map("guardian_relation")
   primaryTherapist   User?    @relation("AttendanceTherapist", fields: [primaryTherapistId], references: [id])
@@ -342,5 +348,6 @@ model AttendanceLog {
   @@index([clinicId])
   @@index([clientId])
   @@index([loggedAt])
+  @@index([sessionId])
   @@map("attendance_logs")
 }

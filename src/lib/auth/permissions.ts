@@ -9,6 +9,7 @@ export type Permission =
   | "view_all_sessions"
   | "view_own_sessions"
   | "log_session_notes"
+  | "complete_own_sessions"
   | "verify_sessions"
   | "manage_attendance"
   | "manage_payments"
@@ -54,14 +55,17 @@ const rolePermissions: Record<UserRole, Permission[]> = {
   licensed_ot: [
     "view_own_sessions",
     "log_session_notes",
+    "complete_own_sessions",
   ],
   unlicensed_ot: [
     "view_own_sessions",
     "log_session_notes",
+    "complete_own_sessions",
   ],
   st: [
     "view_own_sessions",
     "log_session_notes",
+    "complete_own_sessions",
   ],
 };
 

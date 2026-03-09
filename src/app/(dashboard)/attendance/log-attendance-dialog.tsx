@@ -24,7 +24,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { logAttendance, ActionState } from "@/actions/attendance";
+import { logAttendance, getClientTodaySessions, ActionState } from "@/actions/attendance";
+import { formatTime12hr } from "@/lib/utils";
 
 interface Clinic {
   id: string;
@@ -47,6 +48,16 @@ interface Client {
   } | null;
 }
 
+interface TodaySession {
+  id: string;
+  scheduledTime: string;
+  therapist: {
+    id: string;
+    firstName: string;
+    lastName: string;
+  };
+}
+
 interface LogAttendanceDialogProps {
   clients: Client[];
   clinics: Clinic[];
@@ -66,6 +77,9 @@ export function LogAttendanceDialog({
   const [guardianName, setGuardianName] = useState<string>("");
   const [guardianRelation, setGuardianRelation] = useState<string>("");
   const [primaryTherapistId, setPrimaryTherapistId] = useState<string>("");
+  const [todaySessions, setTodaySessions] = useState<TodaySession[]>([]);
+  const [selectedSessionId, setSelectedSessionId] = useState<string>("");
+  const [loadingSessions, setLoadingSessions] = useState(false);
   const [state, formAction] = useFormState(logAttendance, initialState);
 
   const filteredClients = clients.filter(
@@ -81,6 +95,34 @@ export function LogAttendanceDialog({
       setPrimaryTherapistId(selectedClientData.primaryTherapistId || "");
     }
   }, [selectedClientData]);
+
+  useEffect(() => {
+    async function loadTodaySessions() {
+      if (!selectedClient || !selectedClinic) {
+        setTodaySessions([]);
+        setSelectedSessionId("");
+        return;
+      }
+
+      setLoadingSessions(true);
+      const result = await getClientTodaySessions(selectedClient, selectedClinic);
+      setLoadingSessions(false);
+
+      if (result.data) {
+        setTodaySessions(result.data);
+        if (result.data.length === 1) {
+          setSelectedSessionId(result.data[0].id);
+        } else {
+          setSelectedSessionId("");
+        }
+      } else {
+        setTodaySessions([]);
+        setSelectedSessionId("");
+      }
+    }
+
+    loadTodaySessions();
+  }, [selectedClient, selectedClinic]);
 
   useEffect(() => {
     if (state.success) {
@@ -102,6 +144,8 @@ export function LogAttendanceDialog({
       setGuardianName("");
       setGuardianRelation("");
       setPrimaryTherapistId("");
+      setTodaySessions([]);
+      setSelectedSessionId("");
       if (!userClinicId) {
         setSelectedClinic("");
       }
@@ -219,6 +263,45 @@ export function LogAttendanceDialog({
                   type="hidden"
                   name="primaryTherapistId"
                   value={primaryTherapistId}
+                />
+              </div>
+            )}
+
+            {selectedClient && (
+              <div className="space-y-2">
+                <Label>Today&apos;s Session</Label>
+                {loadingSessions ? (
+                  <div className="text-sm text-muted-foreground">Loading sessions...</div>
+                ) : todaySessions.length === 0 ? (
+                  <div className="rounded-md bg-yellow-50 p-3 text-sm text-yellow-800">
+                    No scheduled session found for today (walk-in)
+                  </div>
+                ) : todaySessions.length === 1 ? (
+                  <div className="rounded-md bg-green-50 p-3 text-sm text-green-800">
+                    Will link to: {formatTime12hr(todaySessions[0].scheduledTime)} with{" "}
+                    {todaySessions[0].therapist.firstName} {todaySessions[0].therapist.lastName}
+                  </div>
+                ) : (
+                  <Select
+                    value={selectedSessionId}
+                    onValueChange={setSelectedSessionId}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a session" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {todaySessions.map((s) => (
+                        <SelectItem key={s.id} value={s.id}>
+                          {formatTime12hr(s.scheduledTime)} - {s.therapist.firstName} {s.therapist.lastName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                <input
+                  type="hidden"
+                  name="sessionId"
+                  value={selectedSessionId}
                 />
               </div>
             )}

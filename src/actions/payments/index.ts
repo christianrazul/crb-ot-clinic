@@ -7,7 +7,7 @@ import { hasPermission, canAccessClinic } from "@/lib/auth/permissions";
 import { recordPaymentSchema } from "@/lib/validations/payment";
 import { createAuditLog } from "@/lib/audit";
 import { startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from "date-fns";
-import { CreditType, PaymentStatus, UserRole } from "@prisma/client";
+import { CreditType, PaymentStatus, UserRole, SessionStatus, PaymentMethod, PaymentSource, AttendancePaymentStatus } from "@prisma/client";
 
 export type ActionState = {
   error?: string;
@@ -364,4 +364,288 @@ export async function linkSessionToAdvancePayment(
   revalidatePath("/schedule");
 
   return { success: true };
+}
+
+export async function collectSessionPayment(
+  sessionId: string,
+  paymentMethod: PaymentMethod = PaymentMethod.cash
+): Promise<ActionState> {
+  const session = await auth();
+  if (!session?.user || !hasPermission(session.user.role, "collect_payments")) {
+    return { error: "Unauthorized" };
+  }
+
+  const existingSession = await db.session.findUnique({
+    where: { id: sessionId },
+    include: {
+      client: true,
+      therapist: { select: { role: true } },
+      paymentSessions: true,
+      attendanceLogs: true,
+    },
+  });
+
+  if (!existingSession) {
+    return { error: "Session not found" };
+  }
+
+  if (
+    session.user.primaryClinicId &&
+    !canAccessClinic(session.user.role, session.user.primaryClinicId, existingSession.clinicId)
+  ) {
+    return { error: "You can only collect payments for your assigned clinic" };
+  }
+
+  if (existingSession.status !== SessionStatus.completed) {
+    return { error: "Session must be completed before payment can be collected" };
+  }
+
+  if (!existingSession.verifiedAt) {
+    return { error: "Session must be verified before payment can be collected" };
+  }
+
+  if (existingSession.paymentSessions.length > 0) {
+    return { error: "Session already has a payment recorded" };
+  }
+
+  if (!existingSession.clientId) {
+    return { error: "Session has no registered client" };
+  }
+
+  const now = new Date();
+  const rate = await db.sessionRate.findFirst({
+    where: {
+      clinicId: existingSession.clinicId,
+      therapistType: existingSession.therapist.role,
+      effectiveFrom: { lte: now },
+      OR: [{ effectiveTo: null }, { effectiveTo: { gte: now } }],
+    },
+    orderBy: { effectiveFrom: "desc" },
+  });
+
+  const amount = rate ? Number(rate.ratePerSession) : 0;
+
+  if (amount <= 0) {
+    return { error: "No active session rate found for this therapist type" };
+  }
+
+  const payment = await db.$transaction(async (tx) => {
+    const newPayment = await tx.payment.create({
+      data: {
+        clinicId: existingSession.clinicId,
+        clientId: existingSession.clientId!,
+        paymentType: "per_session",
+        amount,
+        paymentMethod,
+        paymentSource: PaymentSource.client,
+        creditType: CreditType.regular,
+        sessionsPaid: 1,
+        recordedById: session.user.id,
+        status: PaymentStatus.completed,
+        notes: `Payment for session ${sessionId}`,
+      },
+    });
+
+    await tx.paymentSession.create({
+      data: {
+        paymentId: newPayment.id,
+        sessionId,
+        amount,
+      },
+    });
+
+    if (existingSession.attendanceLogs.length > 0) {
+      await tx.attendanceLog.updateMany({
+        where: {
+          sessionId,
+          paymentStatus: AttendancePaymentStatus.UNPAID,
+        },
+        data: {
+          paymentStatus: AttendancePaymentStatus.PAID,
+        },
+      });
+    }
+
+    return newPayment;
+  });
+
+  await createAuditLog({
+    userId: session.user.id,
+    userEmail: session.user.email!,
+    userRole: session.user.role,
+    action: "CREATE",
+    entityType: "Payment",
+    entityId: payment.id,
+    newValues: {
+      sessionId,
+      amount,
+      paymentMethod,
+    },
+    description: `Collected payment for completed session`,
+    clinicId: existingSession.clinicId,
+  });
+
+  revalidatePath("/payments");
+  revalidatePath("/attendance");
+  revalidatePath("/schedule");
+  revalidatePath("/confirmations");
+  revalidatePath("/dashboard");
+
+  return { success: true, data: payment };
+}
+
+export async function getSessionsAwaitingPayment(clinicId?: string) {
+  const session = await auth();
+  if (!session?.user || !hasPermission(session.user.role, "collect_payments")) {
+    return { error: "Unauthorized" };
+  }
+
+  const effectiveClinicId = clinicId || session.user.primaryClinicId;
+
+  const sessions = await db.session.findMany({
+    where: {
+      status: SessionStatus.completed,
+      verifiedAt: { not: null },
+      clientId: { not: null },
+      paymentSessions: { none: {} },
+      ...(effectiveClinicId && { clinicId: effectiveClinicId }),
+    },
+    include: {
+      clinic: { select: { id: true, name: true, code: true } },
+      client: { select: { id: true, firstName: true, lastName: true } },
+      therapist: { select: { id: true, firstName: true, lastName: true, role: true } },
+    },
+    orderBy: { completedAt: "desc" },
+  });
+
+  return { data: sessions };
+}
+
+export type TherapistPayoutSession = {
+  id: string;
+  clientName: string;
+  scheduledDate: Date;
+  scheduledTime: string;
+  completedAt: Date | null;
+  verifiedAt: Date | null;
+  isPaid: boolean;
+  amount: number;
+};
+
+export type TherapistPayoutSummary = {
+  therapistId: string;
+  therapistName: string;
+  therapistRole: UserRole;
+  sessionsCompleted: number;
+  sessionsPaid: number;
+  totalOwed: number;
+  totalPaid: number;
+  sessions: TherapistPayoutSession[];
+};
+
+export async function getTherapistPayoutReport(
+  startDate: Date,
+  endDate: Date,
+  clinicId?: string
+): Promise<ActionState & { data?: TherapistPayoutSummary[] }> {
+  const session = await auth();
+  if (!session?.user || !hasPermission(session.user.role, "view_financial_reports")) {
+    return { error: "Unauthorized" };
+  }
+
+  const effectiveClinicId = clinicId || session.user.primaryClinicId;
+
+  const sessions = await db.session.findMany({
+    where: {
+      status: SessionStatus.completed,
+      completedAt: { not: null },
+      scheduledDate: {
+        gte: startOfDay(startDate),
+        lte: endOfDay(endDate),
+      },
+      ...(effectiveClinicId && { clinicId: effectiveClinicId }),
+    },
+    include: {
+      therapist: { select: { id: true, firstName: true, lastName: true, role: true } },
+      client: { select: { id: true, firstName: true, lastName: true } },
+      paymentSessions: {
+        include: {
+          payment: { select: { status: true } },
+        },
+      },
+    },
+    orderBy: [{ therapistId: "asc" }, { completedAt: "asc" }],
+  });
+
+  const clinicIds = Array.from(new Set(sessions.map((s) => s.clinicId)));
+  const roles = Array.from(new Set(sessions.map((s) => s.therapist.role)));
+
+  const now = new Date();
+  const rates = await db.sessionRate.findMany({
+    where: {
+      clinicId: { in: clinicIds },
+      therapistType: { in: roles },
+      effectiveFrom: { lte: now },
+      OR: [{ effectiveTo: null }, { effectiveTo: { gte: now } }],
+    },
+    orderBy: { effectiveFrom: "desc" },
+  });
+
+  const rateMap = new Map<string, number>();
+  for (const rate of rates) {
+    const key = `${rate.clinicId}:${rate.therapistType}`;
+    if (!rateMap.has(key)) {
+      rateMap.set(key, Number(rate.ratePerSession));
+    }
+  }
+
+  const therapistMap = new Map<string, TherapistPayoutSummary>();
+
+  for (const s of sessions) {
+    const therapistKey = s.therapistId;
+    const rateKey = `${s.clinicId}:${s.therapist.role}`;
+    const sessionRate = rateMap.get(rateKey) || 0;
+    const isPaid = s.paymentSessions.some(
+      (ps) => ps.payment.status === PaymentStatus.completed
+    );
+
+    if (!therapistMap.has(therapistKey)) {
+      therapistMap.set(therapistKey, {
+        therapistId: s.therapist.id,
+        therapistName: `${s.therapist.firstName} ${s.therapist.lastName}`,
+        therapistRole: s.therapist.role,
+        sessionsCompleted: 0,
+        sessionsPaid: 0,
+        totalOwed: 0,
+        totalPaid: 0,
+        sessions: [],
+      });
+    }
+
+    const summary = therapistMap.get(therapistKey)!;
+    summary.sessionsCompleted += 1;
+    summary.totalOwed += sessionRate;
+
+    if (isPaid) {
+      summary.sessionsPaid += 1;
+      summary.totalPaid += sessionRate;
+    }
+
+    const clientName = s.client
+      ? `${s.client.firstName} ${s.client.lastName}`
+      : s.clientName || "Unknown";
+
+    summary.sessions.push({
+      id: s.id,
+      clientName,
+      scheduledDate: s.scheduledDate,
+      scheduledTime: s.scheduledTime,
+      completedAt: s.completedAt,
+      verifiedAt: s.verifiedAt,
+      isPaid,
+      amount: sessionRate,
+    });
+  }
+
+  return { data: Array.from(therapistMap.values()) };
 }
