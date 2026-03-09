@@ -26,7 +26,7 @@ import {
 import { roleLabels, isTherapist as checkIsTherapist } from "@/lib/auth/permissions";
 import { formatTime12hr } from "@/lib/utils";
 import { startSession, completeSession } from "@/actions/sessions";
-import { CancelSessionDialog } from "./cancel-session-dialog";
+import { EditSessionDialog } from "./edit-session-dialog";
 
 export interface SessionWithDetails {
   id: string;
@@ -48,12 +48,20 @@ export interface SessionWithDetails {
   therapist: { id: string; firstName: string; lastName: string; role: UserRole };
 }
 
+interface Therapist {
+  id: string;
+  firstName: string;
+  lastName: string;
+  role: UserRole;
+}
+
 interface SessionDetailsDialogProps {
   session: SessionWithDetails | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   currentUserId: string;
   currentUserRole: UserRole | string;
+  therapists?: Therapist[];
 }
 
 const statusColors: Record<SessionStatus, string> = {
@@ -84,12 +92,13 @@ export function SessionDetailsDialog({
   onOpenChange,
   currentUserId,
   currentUserRole,
+  therapists = [],
 }: SessionDetailsDialogProps) {
   const [isStarting, setIsStarting] = useState(false);
   const [isCompleting, setIsCompleting] = useState(false);
   const [startConfirmOpen, setStartConfirmOpen] = useState(false);
   const [completeConfirmOpen, setCompleteConfirmOpen] = useState(false);
-  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
 
   if (!session) return null;
 
@@ -120,8 +129,8 @@ export function SessionDetailsDialog({
     }
   }
 
-  function handleCancelComplete() {
-    setCancelDialogOpen(false);
+  function handleEditComplete() {
+    setEditDialogOpen(false);
     onOpenChange(false);
   }
 
@@ -202,21 +211,21 @@ export function SessionDetailsDialog({
               <>
                 <Separator />
                 <div className="flex gap-2">
+                  {canCancel && (
+                    <Button
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => setEditDialogOpen(true)}
+                    >
+                      Edit Session
+                    </Button>
+                  )}
                   {canStart && (
                     <Button
                       className="flex-1"
                       onClick={() => setStartConfirmOpen(true)}
                     >
                       Start Session
-                    </Button>
-                  )}
-                  {canCancel && (
-                    <Button
-                      variant="destructive"
-                      className="flex-1"
-                      onClick={() => setCancelDialogOpen(true)}
-                    >
-                      Cancel Session
                     </Button>
                   )}
                 </div>
@@ -282,12 +291,16 @@ export function SessionDetailsDialog({
         </AlertDialogContent>
       </AlertDialog>
 
-      <CancelSessionDialog
+      <EditSessionDialog
         sessionId={session.id}
         clientName={`${session.client.firstName} ${session.client.lastName}`}
-        open={cancelDialogOpen}
-        onOpenChange={setCancelDialogOpen}
-        onComplete={handleCancelComplete}
+        scheduledDate={session.scheduledDate}
+        scheduledTime={session.scheduledTime}
+        currentTherapistId={session.therapist.id}
+        therapists={therapists}
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        onComplete={handleEditComplete}
       />
     </>
   );

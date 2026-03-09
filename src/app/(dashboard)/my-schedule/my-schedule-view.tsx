@@ -35,8 +35,16 @@ interface Session {
   therapist: { id: string; firstName: string; lastName: string; role: UserRole };
 }
 
+interface Therapist {
+  id: string;
+  firstName: string;
+  lastName: string;
+  role: UserRole;
+}
+
 interface MyScheduleViewProps {
   sessions: Session[];
+  therapists?: Therapist[];
   selectedDate: Date;
   currentUserId: string;
   currentUserRole: UserRole | string;
@@ -58,6 +66,7 @@ const timeSlots = [
 
 export function MyScheduleView({
   sessions,
+  therapists = [],
   selectedDate,
   currentUserId,
   currentUserRole,
@@ -300,6 +309,7 @@ export function MyScheduleView({
         onOpenChange={setDialogOpen}
         currentUserId={currentUserId}
         currentUserRole={currentUserRole}
+        therapists={therapists}
       />
     </div>
   );

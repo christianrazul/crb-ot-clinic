@@ -42,9 +42,17 @@ interface Clinic {
   code: string;
 }
 
+interface Therapist {
+  id: string;
+  firstName: string;
+  lastName: string;
+  role: UserRole;
+}
+
 interface ScheduleViewProps {
   sessions: Session[];
   clinics: Clinic[];
+  therapists?: Therapist[];
   selectedDate: Date;
   selectedClinic?: string;
   currentUserId: string;
@@ -68,6 +76,7 @@ const timeSlots = [
 export function ScheduleView({
   sessions,
   clinics,
+  therapists = [],
   selectedDate,
   selectedClinic,
   currentUserId,
@@ -345,6 +354,7 @@ export function ScheduleView({
         onOpenChange={setDialogOpen}
         currentUserId={currentUserId}
         currentUserRole={currentUserRole}
+        therapists={therapists}
       />
     </div>
   );

@@ -66,6 +66,7 @@ export default async function SchedulePage({ searchParams }: PageProps) {
       <ScheduleView
         sessions={sessionsResult.data || []}
         clinics={clinics}
+        therapists={therapists}
         selectedDate={selectedDate}
         selectedClinic={selectedClinic}
         currentUserId={session.user.id}

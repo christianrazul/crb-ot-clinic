@@ -878,3 +878,55 @@ export async function getPendingConfirmationsCountForUser(
     return 0;
   }
 }
+
+export async function moveSession(
+  sessionId: string,
+  newDate: string,
+  newTime: string,
+  therapistId?: string
+): Promise<ActionState> {
+  const session = await auth();
+  if (!session?.user) {
+    return { error: "Unauthorized" };
+  }
+
+  const existingSession = await db.session.findUnique({
+    where: { id: sessionId },
+  });
+
+  if (!existingSession) {
+    return { error: "Session not found" };
+  }
+
+  const isTherapistUser = isTherapist(session.user.role);
+  const isOwnSession = existingSession.therapistId === session.user.id;
+  const canManage = hasPermission(session.user.role, "manage_sessions");
+
+  if (isTherapistUser && !isOwnSession) {
+    return { error: "You can only move your own sessions" };
+  }
+
+  if (!isTherapistUser && !canManage) {
+    return { error: "Unauthorized" };
+  }
+
+  if (existingSession.status !== SessionStatus.scheduled) {
+    return { error: "Only scheduled sessions can be moved" };
+  }
+
+  await db.session.update({
+    where: { id: sessionId },
+    data: {
+      sessionType: "make_up",
+      scheduledDate: new Date(newDate),
+      scheduledTime: newTime,
+      ...(therapistId && { therapistId }),
+    },
+  });
+
+  revalidatePath("/schedule");
+  revalidatePath("/my-schedule");
+  revalidatePath("/sessions");
+  revalidatePath("/dashboard");
+  return { success: true };
+}

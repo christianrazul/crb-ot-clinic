@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth/auth";
 import { isTherapist } from "@/lib/auth/permissions";
 import { getSessions, getSessionsInRange } from "@/actions/sessions";
+import { getTherapists } from "@/actions/clients";
 import { MyScheduleView } from "./my-schedule-view";
 import { format, parseISO, startOfWeek, endOfWeek } from "date-fns";
 
@@ -29,6 +30,8 @@ export default async function MySchedulePage({ searchParams }: PageProps) {
       )
     : await getSessions(selectedDate);
 
+  const therapists = await getTherapists(session.user.primaryClinicId ?? undefined);
+
   if (sessionsResult.error) {
     return <div>Error: {sessionsResult.error}</div>;
   }
@@ -44,6 +47,7 @@ export default async function MySchedulePage({ searchParams }: PageProps) {
 
       <MyScheduleView
         sessions={sessionsResult.data || []}
+        therapists={therapists}
         selectedDate={selectedDate}
         currentUserId={session.user.id}
         currentUserRole={session.user.role}
