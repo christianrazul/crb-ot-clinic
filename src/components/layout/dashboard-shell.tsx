@@ -6,13 +6,11 @@ import { Sidebar } from "@/components/layout/sidebar";
 
 interface DashboardShellProps {
   userRole: string;
-  pendingConfirmationsCount: number;
   children: React.ReactNode;
 }
 
 export function DashboardShell({
   userRole,
-  pendingConfirmationsCount,
   children,
 }: DashboardShellProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -25,7 +23,6 @@ export function DashboardShell({
     <div className="flex h-screen overflow-hidden">
       <Sidebar
         userRole={userRole}
-        pendingConfirmationsCount={pendingConfirmationsCount}
         isOpen={isSidebarOpen}
       />
       <div className="flex flex-1 flex-col overflow-hidden">

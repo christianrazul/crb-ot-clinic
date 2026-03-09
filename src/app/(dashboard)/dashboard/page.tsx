@@ -8,7 +8,6 @@ import { getSecretaryDailyReport, getTherapistDailyReport } from "@/actions/sess
 import { DashboardClinicSelector } from "./clinic-selector";
 import { format } from "date-fns";
 import { Calendar, ClipboardList, DollarSign } from "lucide-react";
-import { PendingConfirmationsCard } from "@/components/dashboard/pending-confirmations-card";
 import { DailyReportCard } from "@/components/dashboard/daily-report-card";
 import { SecretaryDailyReportCard } from "@/components/dashboard/secretary-daily-report-card";
 
@@ -32,7 +31,6 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const isTherapistUser = isTherapist(user.role);
   const isSecretaryUser = user.role === "secretary";
 
-  const canVerify = hasPermission(user.role, "verify_sessions");
   const canViewFinancials = hasPermission(user.role, "view_financial_reports");
 
   const clinics = await db.clinic.findMany({
@@ -57,7 +55,6 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const [
     todaySessions,
     attendanceRecordsToday,
-    pendingConfirmations,
     dailyRevenueResult,
     expectedIncomeResult,
     therapistDailyReportResult,
@@ -84,24 +81,6 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         ...(canViewAll && selectedClinicId && { clinicId: selectedClinicId }),
       },
     }),
-    canVerify
-      ? db.session.findMany({
-          where: {
-            status: "in_progress",
-            startedAt: { not: null },
-            verifiedAt: null,
-            ...(canViewAll && selectedClinicId && { clinicId: selectedClinicId }),
-            ...(!canViewAll && user.primaryClinicId && { clinicId: user.primaryClinicId }),
-          },
-          include: {
-            clinic: { select: { id: true, name: true, code: true } },
-            client: { select: { id: true, firstName: true, lastName: true } },
-            therapist: { select: { id: true, firstName: true, lastName: true, role: true } },
-            startedBy: { select: { id: true, firstName: true, lastName: true } },
-          },
-          orderBy: { startedAt: "asc" },
-        })
-      : [],
     canViewFinancials ? getDailyRevenue(new Date(), selectedClinicId) : { data: 0 },
     canViewFinancials ? getExpectedIncomeToday(selectedClinicId) : { data: 0 },
     isTherapistUser ? getTherapistDailyReport(selectedClinicId) : { data: undefined },
@@ -204,33 +183,6 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                 </CardDescription>
               </CardHeader>
             </Card>
-          )}
-        </section>
-      )}
-
-      {(canViewAll || (canVerify && pendingConfirmations.length > 0)) && (
-        <section className="space-y-3">
-          <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Confirmations</h3>
-          {canViewAll && (
-            <div className="grid gap-4 md:grid-cols-2">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    Pending Confirmations
-                  </CardTitle>
-                  <ClipboardList className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{pendingConfirmations.length}</div>
-                  <p className="text-xs text-muted-foreground">
-                    sessions to confirm
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
-          )}
-          {canVerify && pendingConfirmations.length > 0 && (
-            <PendingConfirmationsCard sessions={pendingConfirmations} />
           )}
         </section>
       )}
