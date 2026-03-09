@@ -25,7 +25,7 @@ export default async function UsersPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">User Management</h2>
+          <h2 className="text-2xl font-bold tracking-tight">Staff Management</h2>
           <p className="text-muted-foreground">
             Manage staff accounts and permissions
           </p>

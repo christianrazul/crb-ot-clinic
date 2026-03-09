@@ -90,7 +90,7 @@ function getPageTitle(pathname: string) {
     "/sessions": "Sessions",
     "/payments": "Payments",
     "/my-schedule": "My Schedule",
-    "/admin/users": "User Management",
+    "/admin/users": "Staff Management",
   };
 
   for (const [path, title] of Object.entries(titles)) {

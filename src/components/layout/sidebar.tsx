@@ -83,7 +83,7 @@ const navItems: NavItem[] = [
     permission: "view_payments",
   },
   {
-    title: "User Management",
+    title: "Staff Management",
     href: "/admin/users",
     icon: Settings,
     permission: "manage_users",

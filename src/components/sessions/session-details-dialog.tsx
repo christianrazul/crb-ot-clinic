@@ -130,15 +130,13 @@ export function SessionDetailsDialog({
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle className="flex items-center justify-between">
-              <span>Session Details</span>
-              <div className="flex items-center gap-2">
-                <Badge variant="outline">{sessionTypeLabels[session.sessionType]}</Badge>
-                <Badge className={statusColors[session.status]}>
-                  {statusLabels[session.status]}
-                </Badge>
-              </div>
-            </DialogTitle>
+            <DialogTitle>Session Details</DialogTitle>
+            <div className="flex items-center gap-2 pt-1">
+              <Badge variant="outline">{sessionTypeLabels[session.sessionType]}</Badge>
+              <Badge className={statusColors[session.status]}>
+                {statusLabels[session.status]}
+              </Badge>
+            </div>
           </DialogHeader>
 
           <div className="space-y-4">
