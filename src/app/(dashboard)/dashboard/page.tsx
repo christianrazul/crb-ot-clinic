@@ -197,56 +197,6 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           )}
         </section>
       )}
-
-      {canViewFinancials && (
-        <section className="space-y-3">
-          <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Payments</h3>
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Today&apos;s Revenue
-                </CardTitle>
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{formatCurrency(dailyRevenue)}</div>
-                <p className="text-xs text-muted-foreground">
-                  collected today
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Expected Income Today
-                </CardTitle>
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{formatCurrency(expectedIncomeToday)}</div>
-                <p className="text-xs text-muted-foreground">
-                  collectible from today&apos;s attendance
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Financial Summary</CardTitle>
-                <CardDescription>
-                  Reports data is consolidated into dashboard for daily operations.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-1 text-sm text-muted-foreground">
-                <p>Collected today: {formatCurrency(dailyRevenue)}</p>
-                <p>Expected income today: {formatCurrency(expectedIncomeToday)}</p>
-              </CardContent>
-            </Card>
-          </div>
-        </section>
-      )}
     </div>
   );
 }
