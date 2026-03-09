@@ -117,7 +117,7 @@ export function Sidebar({
     >
       <div className="flex h-14 items-center border-b px-4">
         <Link href="/dashboard" className="flex items-center gap-2 font-semibold">
-          <span className="text-lg">CRB OT Clinic</span>
+          <span className="text-lg text-primary">CRB OT Clinic</span>
         </Link>
       </div>
       <ScrollArea className="flex-1 py-2">

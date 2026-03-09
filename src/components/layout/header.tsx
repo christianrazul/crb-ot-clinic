@@ -62,7 +62,7 @@ export function Header({ onToggleSidebar }: HeaderProps) {
                 </Badge>
               </div>
               <Avatar className="h-8 w-8">
-                <AvatarFallback className="text-xs">{initials}</AvatarFallback>
+                <AvatarFallback className="bg-primary text-primary-foreground text-xs">{initials}</AvatarFallback>
               </Avatar>
             </button>
           </DropdownMenuTrigger>
