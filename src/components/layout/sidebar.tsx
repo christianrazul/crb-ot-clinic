@@ -56,12 +56,6 @@ const navItems: NavItem[] = [
     permission: "manage_attendance",
   },
   {
-    title: "Clients",
-    href: "/clients",
-    icon: Users,
-    permission: "view_all_clients",
-  },
-  {
     title: "Sessions",
     href: "/sessions",
     icon: ClipboardList,
@@ -72,6 +66,12 @@ const navItems: NavItem[] = [
     href: "/payments",
     icon: CreditCard,
     permission: "view_payments",
+  },
+  {
+    title: "Client Management",
+    href: "/clients",
+    icon: Users,
+    permission: "view_all_clients",
   },
   {
     title: "Staff Management",
