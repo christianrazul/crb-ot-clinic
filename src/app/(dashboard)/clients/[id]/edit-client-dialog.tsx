@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useFormState } from "react-dom";
-import { ClientStatus, UserRole } from "@prisma/client";
+import { ClientStatus, Gender, UserRole } from "@prisma/client";
 import { Pencil } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -34,6 +34,7 @@ interface Client {
   firstName: string;
   lastName: string;
   dateOfBirth: Date | null;
+  gender: Gender | null;
   diagnosis: string | null;
   guardianName: string;
   guardianPhone: string | null;
@@ -171,7 +172,7 @@ export function EditClientDialog({ client, clinics, therapists }: EditClientDial
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="dateOfBirth">Date of Birth</Label>
                 <Input
@@ -184,6 +185,19 @@ export function EditClientDialog({ client, clinics, therapists }: EditClientDial
                       : ""
                   }
                 />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="gender">Gender</Label>
+                <Select name="gender" defaultValue={client.gender ?? undefined}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="male">Male</SelectItem>
+                    <SelectItem value="female">Female</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="diagnosis">Diagnosis</Label>

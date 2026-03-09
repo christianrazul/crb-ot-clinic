@@ -21,6 +21,12 @@ enum ClientStatus {
   discharged
 }
 
+enum Gender {
+  male
+  female
+  other
+}
+
 enum SessionStatus {
   scheduled
   in_progress
@@ -141,6 +147,7 @@ model Client {
   firstName        String       @map("first_name")
   lastName         String       @map("last_name")
   dateOfBirth      DateTime?    @map("date_of_birth")
+  gender           Gender?
   diagnosis        String?
   guardianName     String       @map("guardian_name")
   guardianPhone    String?      @map("guardian_phone")

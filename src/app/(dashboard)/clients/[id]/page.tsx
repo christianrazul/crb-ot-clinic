@@ -81,16 +81,16 @@ export default async function ClientDetailPage({ params }: PageProps) {
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
+                <p className="text-sm text-muted-foreground">Diagnosis</p>
+                <p className="font-medium">{client.diagnosis || "Not specified"}</p>
+              </div>
+              <div>
                 <p className="text-sm text-muted-foreground">Date of Birth</p>
                 <p className="font-medium">
                   {client.dateOfBirth
                     ? format(new Date(client.dateOfBirth), "MMMM d, yyyy")
                     : "Not specified"}
                 </p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Diagnosis</p>
-                <p className="font-medium">{client.diagnosis || "Not specified"}</p>
               </div>
             </div>
 
@@ -101,15 +101,22 @@ export default async function ClientDetailPage({ params }: PageProps) {
                   {format(new Date(client.enrollmentDate), "MMMM d, yyyy")}
                 </p>
               </div>
-              {client.dischargeDate && (
-                <div>
-                  <p className="text-sm text-muted-foreground">Discharge Date</p>
-                  <p className="font-medium">
-                    {format(new Date(client.dischargeDate), "MMMM d, yyyy")}
-                  </p>
-                </div>
-              )}
+              <div>
+                <p className="text-sm text-muted-foreground">Gender</p>
+                <p className="font-medium capitalize">
+                  {client.gender ?? "Not specified"}
+                </p>
+              </div>
             </div>
+
+            {client.dischargeDate && (
+              <div>
+                <p className="text-sm text-muted-foreground">Discharge Date</p>
+                <p className="font-medium">
+                  {format(new Date(client.dischargeDate), "MMMM d, yyyy")}
+                </p>
+              </div>
+            )}
 
             {client.notes && (
               <div>

@@ -3,8 +3,7 @@
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { ClientStatus, UserRole } from "@prisma/client";
-import { format } from "date-fns";
+import { ClientStatus, Gender, UserRole } from "@prisma/client";
 import { Search, Eye } from "lucide-react";
 import {
   Table,
@@ -24,6 +23,7 @@ interface Client {
   firstName: string;
   lastName: string;
   dateOfBirth: Date | null;
+  gender: Gender | null;
   diagnosis: string | null;
   guardianName: string;
   status: ClientStatus;
@@ -126,9 +126,9 @@ export function ClientsTable({ clients }: ClientsTableProps) {
                       <div className="font-medium">
                         {client.firstName} {client.lastName}
                       </div>
-                      {client.dateOfBirth && (
-                        <div className="text-sm text-muted-foreground">
-                          DOB: {format(new Date(client.dateOfBirth), "MMM d, yyyy")}
+                      {client.gender && (
+                        <div className="text-sm text-muted-foreground capitalize">
+                          {client.gender}
                         </div>
                       )}
                     </div>

@@ -1,11 +1,12 @@
 import { z } from "zod";
-import { ClientStatus } from "@prisma/client";
+import { ClientStatus, Gender } from "@prisma/client";
 
 export const createClientSchema = z.object({
   mainClinicId: z.string().min(1, "Clinic is required"),
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
   dateOfBirth: z.string().optional(),
+  gender: z.nativeEnum(Gender).optional(),
   diagnosis: z.string().optional(),
   guardianName: z.string().min(1, "Guardian name is required"),
   guardianPhone: z.string().optional(),
@@ -21,6 +22,7 @@ export const updateClientSchema = z.object({
   firstName: z.string().min(1, "First name is required").optional(),
   lastName: z.string().min(1, "Last name is required").optional(),
   dateOfBirth: z.string().optional(),
+  gender: z.nativeEnum(Gender).optional(),
   diagnosis: z.string().optional(),
   guardianName: z.string().min(1, "Guardian name is required").optional(),
   guardianPhone: z.string().optional(),
