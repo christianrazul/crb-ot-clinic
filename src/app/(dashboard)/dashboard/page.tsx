@@ -4,12 +4,13 @@ import { db } from "@/lib/db";
 import { hasPermission, isTherapist } from "@/lib/auth/permissions";
 import { getDailyRevenue } from "@/actions/payments";
 import { getExpectedIncomeToday } from "@/actions/attendance";
-import { getSecretaryDailyReport, getTherapistDailyReport } from "@/actions/sessions";
+import { getSecretaryDailyReport, getTherapistDailyReport, getOwnerDailyReport } from "@/actions/sessions";
 import { DashboardClinicSelector } from "./clinic-selector";
 import { format } from "date-fns";
 import { Calendar, ClipboardList, DollarSign } from "lucide-react";
 import { DailyReportCard } from "@/components/dashboard/daily-report-card";
 import { SecretaryDailyReportCard } from "@/components/dashboard/secretary-daily-report-card";
+import { OwnerDailyReportCard } from "@/components/dashboard/owner-daily-report-card";
 
 interface DashboardPageProps {
   searchParams: Promise<{ clinicId?: string }>;
@@ -30,6 +31,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const canViewAll = hasPermission(user.role, "view_all_sessions");
   const isTherapistUser = isTherapist(user.role);
   const isSecretaryUser = user.role === "secretary";
+  const isOwnerUser = user.role === "owner";
 
   const canViewFinancials = hasPermission(user.role, "view_financial_reports");
 
@@ -59,6 +61,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     expectedIncomeResult,
     therapistDailyReportResult,
     secretaryDailyReportResult,
+    ownerDailyReportResult,
   ] = await Promise.all([
     db.session.count({
       where: {
@@ -85,6 +88,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     canViewFinancials ? getExpectedIncomeToday(selectedClinicId) : { data: 0 },
     isTherapistUser ? getTherapistDailyReport(selectedClinicId) : { data: undefined },
     isSecretaryUser ? getSecretaryDailyReport(selectedClinicId) : { data: undefined },
+    isOwnerUser ? getOwnerDailyReport(selectedClinicId) : { data: undefined },
   ]);
 
   const dailyRevenue = dailyRevenueResult.data || 0;
@@ -93,11 +97,16 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     "error" in therapistDailyReportResult && Boolean(therapistDailyReportResult.error);
   const hasSecretaryDailyReportError =
     "error" in secretaryDailyReportResult && Boolean(secretaryDailyReportResult.error);
+  const hasOwnerDailyReportError =
+    "error" in ownerDailyReportResult && Boolean(ownerDailyReportResult.error);
   const therapistDailyReport = isTherapistUser && !hasTherapistDailyReportError
     ? therapistDailyReportResult.data
     : undefined;
   const secretaryDailyReport = isSecretaryUser && !hasSecretaryDailyReportError
     ? secretaryDailyReportResult.data
+    : undefined;
+  const ownerDailyReport = isOwnerUser && !hasOwnerDailyReportError
+    ? ownerDailyReportResult.data
     : undefined;
 
   function formatCurrency(amount: number): string {
@@ -168,13 +177,15 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         </section>
       </div>
 
-      {(isTherapistUser || isSecretaryUser) && (
+      {(isTherapistUser || isSecretaryUser || isOwnerUser) && (
         <section className="space-y-3">
           <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Daily Report</h3>
           {isTherapistUser && therapistDailyReport ? (
             <DailyReportCard report={therapistDailyReport} />
           ) : isSecretaryUser && secretaryDailyReport ? (
             <SecretaryDailyReportCard report={secretaryDailyReport} />
+          ) : isOwnerUser && ownerDailyReport ? (
+            <OwnerDailyReportCard report={ownerDailyReport} />
           ) : (
             <Card>
               <CardHeader>

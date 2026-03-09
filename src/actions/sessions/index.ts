@@ -40,6 +40,21 @@ export type SecretaryDailyReport = {
   }[];
 };
 
+export type OwnerDailyReport = {
+  totalExpectedIncome: number;
+  totalReceivedIncome: number;
+  sessions: {
+    id: string;
+    patientName: string;
+    scheduledTime: string;
+    sessionType: string;
+    therapistName: string;
+    therapistRate: number;
+    paymentStatus: "paid" | "unpaid";
+    paymentAmount: number;
+  }[];
+};
+
 type PendingConfirmationsUser = {
   role: string;
   primaryClinicId?: string | null;
@@ -301,6 +316,136 @@ export async function getSecretaryDailyReport(clinicId?: string): Promise<Action
         sessionType: sessionRow.sessionType,
         scheduledTime: sessionRow.scheduledTime,
       })),
+    },
+  };
+}
+
+export async function getOwnerDailyReport(clinicId?: string): Promise<ActionState & { data?: OwnerDailyReport }> {
+  const session = await auth();
+  if (!session?.user || session.user.role !== "owner") {
+    return { error: "Unauthorized" };
+  }
+
+  const dayStart = startOfDay(new Date());
+  const dayEnd = endOfDay(new Date());
+
+  const effectiveClinicId = clinicId || session.user.primaryClinicId || undefined;
+
+  const sessions = await db.session.findMany({
+    where: {
+      scheduledDate: {
+        gte: dayStart,
+        lte: dayEnd,
+      },
+      status: {
+        not: SessionStatus.cancelled,
+      },
+      ...(effectiveClinicId && { clinicId: effectiveClinicId }),
+    },
+    select: {
+      id: true,
+      clinicId: true,
+      clientName: true,
+      sessionType: true,
+      scheduledTime: true,
+      client: {
+        select: {
+          firstName: true,
+          lastName: true,
+        },
+      },
+      therapist: {
+        select: {
+          role: true,
+          firstName: true,
+          lastName: true,
+        },
+      },
+      paymentSessions: {
+        select: {
+          amount: true,
+          payment: {
+            select: {
+              status: true,
+            },
+          },
+        },
+      },
+      attendanceLogs: {
+        select: {
+          paymentStatus: true,
+        },
+      },
+    },
+    orderBy: { scheduledTime: "asc" },
+  });
+
+  const clinicIds = Array.from(new Set(sessions.map((s) => s.clinicId)));
+  const therapistRoles = Array.from(new Set(sessions.map((s) => s.therapist.role)));
+  const now = new Date();
+
+  const rateRows = clinicIds.length > 0 && therapistRoles.length > 0
+    ? await db.sessionRate.findMany({
+        where: {
+          clinicId: { in: clinicIds },
+          therapistType: { in: therapistRoles },
+          effectiveFrom: { lte: now },
+          OR: [{ effectiveTo: null }, { effectiveTo: { gte: now } }],
+        },
+        orderBy: { effectiveFrom: "desc" },
+      })
+    : [];
+
+  const rateByClinicAndRole = new Map<string, number>();
+  for (const rateRow of rateRows) {
+    const key = `${rateRow.clinicId}:${rateRow.therapistType}`;
+    if (!rateByClinicAndRole.has(key)) {
+      rateByClinicAndRole.set(key, Number(rateRow.ratePerSession));
+    }
+  }
+
+  let totalExpectedIncome = 0;
+  let totalReceivedIncome = 0;
+
+  const mappedSessions = sessions.map((sessionRow) => {
+    const rateKey = `${sessionRow.clinicId}:${sessionRow.therapist.role}`;
+    const therapistRate = rateByClinicAndRole.get(rateKey) || 0;
+
+    const paymentSessionAmount = sessionRow.paymentSessions
+      .filter((ps) => ps.payment.status !== "refunded")
+      .reduce((sum, ps) => sum + Number(ps.amount), 0);
+
+    const paidViaAttendance = sessionRow.attendanceLogs.some(
+      (log) => log.paymentStatus === "PAID"
+    );
+
+    const isPaid = paymentSessionAmount > 0 || paidViaAttendance;
+    const paymentAmount = isPaid
+      ? (paymentSessionAmount > 0 ? paymentSessionAmount : therapistRate)
+      : 0;
+
+    const paymentStatus: "paid" | "unpaid" = isPaid ? "paid" : "unpaid";
+
+    totalExpectedIncome += therapistRate;
+    totalReceivedIncome += paymentAmount;
+
+    return {
+      id: sessionRow.id,
+      patientName: buildDisplayName(sessionRow.client, sessionRow.clientName || "New client"),
+      scheduledTime: sessionRow.scheduledTime,
+      sessionType: sessionRow.sessionType,
+      therapistName: buildDisplayName(sessionRow.therapist, "Unassigned"),
+      therapistRate,
+      paymentStatus,
+      paymentAmount,
+    };
+  });
+
+  return {
+    data: {
+      totalExpectedIncome,
+      totalReceivedIncome,
+      sessions: mappedSessions,
     },
   };
 }
