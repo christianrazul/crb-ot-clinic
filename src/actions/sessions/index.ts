@@ -41,14 +41,17 @@ export type SecretaryDailyReport = {
 };
 
 export type OwnerDailyReport = {
-  totalExpectedIncome: number;
-  totalReceivedIncome: number;
+  totalClientExpected: number;
+  totalClientReceived: number;
+  totalTherapistPayout: number;
+  netIncome: number;
   sessions: {
     id: string;
     patientName: string;
     scheduledTime: string;
     sessionType: string;
     therapistName: string;
+    clientRate: number;
     therapistRate: number;
     paymentStatus: "paid" | "unpaid";
     paymentAmount: number;
@@ -404,12 +407,37 @@ export async function getOwnerDailyReport(clinicId?: string): Promise<ActionStat
     }
   }
 
-  let totalExpectedIncome = 0;
-  let totalReceivedIncome = 0;
+  const sessionTypes = Array.from(new Set(sessions.map((s) => s.sessionType)));
+  const clientRateRows = clinicIds.length > 0 && sessionTypes.length > 0
+    ? await db.clientSessionRate.findMany({
+        where: {
+          clinicId: { in: clinicIds },
+          sessionType: { in: sessionTypes },
+          effectiveFrom: { lte: now },
+          OR: [{ effectiveTo: null }, { effectiveTo: { gte: now } }],
+        },
+        orderBy: { effectiveFrom: "desc" },
+      })
+    : [];
+
+  const clientRateByClinicAndType = new Map<string, number>();
+  for (const cr of clientRateRows) {
+    const key = `${cr.clinicId}:${cr.sessionType}`;
+    if (!clientRateByClinicAndType.has(key)) {
+      clientRateByClinicAndType.set(key, Number(cr.ratePerSession));
+    }
+  }
+
+  let totalClientExpected = 0;
+  let totalClientReceived = 0;
+  let totalTherapistPayout = 0;
 
   const mappedSessions = sessions.map((sessionRow) => {
-    const rateKey = `${sessionRow.clinicId}:${sessionRow.therapist.role}`;
-    const therapistRate = rateByClinicAndRole.get(rateKey) || 0;
+    const therapistRateKey = `${sessionRow.clinicId}:${sessionRow.therapist.role}`;
+    const therapistRate = rateByClinicAndRole.get(therapistRateKey) || 0;
+
+    const clientRateKey = `${sessionRow.clinicId}:${sessionRow.sessionType}`;
+    const clientRate = clientRateByClinicAndType.get(clientRateKey) || 0;
 
     const paymentSessionAmount = sessionRow.paymentSessions
       .filter((ps) => ps.payment.status !== "refunded")
@@ -421,13 +449,14 @@ export async function getOwnerDailyReport(clinicId?: string): Promise<ActionStat
 
     const isPaid = paymentSessionAmount > 0 || paidViaAttendance;
     const paymentAmount = isPaid
-      ? (paymentSessionAmount > 0 ? paymentSessionAmount : therapistRate)
+      ? (paymentSessionAmount > 0 ? paymentSessionAmount : clientRate || therapistRate)
       : 0;
 
     const paymentStatus: "paid" | "unpaid" = isPaid ? "paid" : "unpaid";
 
-    totalExpectedIncome += therapistRate;
-    totalReceivedIncome += paymentAmount;
+    totalClientExpected += clientRate;
+    totalClientReceived += paymentAmount;
+    totalTherapistPayout += therapistRate;
 
     return {
       id: sessionRow.id,
@@ -435,6 +464,7 @@ export async function getOwnerDailyReport(clinicId?: string): Promise<ActionStat
       scheduledTime: sessionRow.scheduledTime,
       sessionType: sessionRow.sessionType,
       therapistName: buildDisplayName(sessionRow.therapist, "Unassigned"),
+      clientRate,
       therapistRate,
       paymentStatus,
       paymentAmount,
@@ -443,8 +473,10 @@ export async function getOwnerDailyReport(clinicId?: string): Promise<ActionStat
 
   return {
     data: {
-      totalExpectedIncome,
-      totalReceivedIncome,
+      totalClientExpected,
+      totalClientReceived,
+      totalTherapistPayout,
+      netIncome: totalClientReceived - totalTherapistPayout,
       sessions: mappedSessions,
     },
   };

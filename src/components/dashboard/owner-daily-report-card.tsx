@@ -19,6 +19,8 @@ function formatSessionType(sessionType: string): string {
   if (sessionType === "ot_evaluation") return "OT Evaluation";
   if (sessionType === "make_up") return "Make Up";
   if (sessionType === "regular") return "Regular";
+  if (sessionType === "st_session") return "ST Session";
+  if (sessionType === "sped_session") return "SPED Tutorial";
 
   return sessionType
     .split("_")
@@ -45,7 +47,8 @@ export function OwnerDailyReportCard({ report }: OwnerDailyReportCardProps) {
                 <TableHead>Time</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Therapist</TableHead>
-                <TableHead className="text-right">Rate</TableHead>
+                <TableHead className="text-right">Therapist Rate</TableHead>
+                <TableHead className="text-right">Clinic Rate</TableHead>
                 <TableHead className="text-center">Payment</TableHead>
                 <TableHead className="text-right">Revenue</TableHead>
               </TableRow>
@@ -53,7 +56,7 @@ export function OwnerDailyReportCard({ report }: OwnerDailyReportCardProps) {
             <TableBody>
               {report.sessions.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground">
+                  <TableCell colSpan={8} className="text-center text-muted-foreground">
                     No sessions scheduled today.
                   </TableCell>
                 </TableRow>
@@ -64,7 +67,14 @@ export function OwnerDailyReportCard({ report }: OwnerDailyReportCardProps) {
                     <TableCell>{formatTime12hr(session.scheduledTime)}</TableCell>
                     <TableCell>{formatSessionType(session.sessionType)}</TableCell>
                     <TableCell>{session.therapistName}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(session.therapistRate)}</TableCell>
+                    <TableCell className="text-right text-muted-foreground">
+                      {session.therapistRate > 0 ? formatCurrency(session.therapistRate) : "—"}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {session.clientRate > 0 ? formatCurrency(session.clientRate) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
                     <TableCell className="text-center">
                       <Badge variant={session.paymentStatus === "paid" ? "default" : "outline"}>
                         {session.paymentStatus === "paid" ? "Paid" : "Unpaid"}
@@ -81,13 +91,23 @@ export function OwnerDailyReportCard({ report }: OwnerDailyReportCardProps) {
         </div>
 
         <div className="space-y-1 border-t pt-3 text-sm">
-          <div className="flex items-center justify-between font-semibold">
-            <span>Total Expected Income</span>
-            <span>{formatCurrency(report.totalExpectedIncome)}</span>
+          <div className="flex items-center justify-between text-muted-foreground">
+            <span>Expected from Clients</span>
+            <span>{formatCurrency(report.totalClientExpected)}</span>
+          </div>
+          <div className="flex items-center justify-between text-muted-foreground">
+            <span>Therapist Payout</span>
+            <span>({formatCurrency(report.totalTherapistPayout)})</span>
+          </div>
+          <div className="flex items-center justify-between border-t pt-2 font-semibold">
+            <span>Collected Revenue</span>
+            <span>{formatCurrency(report.totalClientReceived)}</span>
           </div>
           <div className="flex items-center justify-between font-semibold">
-            <span>Total Received Income</span>
-            <span>{formatCurrency(report.totalReceivedIncome)}</span>
+            <span>Net Income</span>
+            <span className={report.netIncome >= 0 ? "" : "text-destructive"}>
+              {formatCurrency(report.netIncome)}
+            </span>
           </div>
         </div>
       </CardContent>

@@ -67,6 +67,11 @@ const rolePermissions: Record<UserRole, Permission[]> = {
     "log_session_notes",
     "complete_own_sessions",
   ],
+  sped_teacher: [
+    "view_own_sessions",
+    "log_session_notes",
+    "complete_own_sessions",
+  ],
 };
 
 export function hasPermission(role: UserRole | string, permission: Permission): boolean {
@@ -80,7 +85,7 @@ export function getPermissions(role: UserRole | string): Permission[] {
 }
 
 export function isTherapist(role: UserRole | string): boolean {
-  return role === "licensed_ot" || role === "unlicensed_ot" || role === "st";
+  return role === "licensed_ot" || role === "unlicensed_ot" || role === "st" || role === "sped_teacher";
 }
 
 export function canAccessClinic(
@@ -98,6 +103,7 @@ export const roleLabels: Record<UserRole, string> = {
   licensed_ot: "Occupational Therapist",
   unlicensed_ot: "Occupational Therapist Aide",
   st: "Speech Therapist",
+  sped_teacher: "SPED Teacher",
 };
 
-export const therapistRoles: UserRole[] = ["licensed_ot", "unlicensed_ot", "st"];
+export const therapistRoles: UserRole[] = ["licensed_ot", "unlicensed_ot", "st", "sped_teacher"];

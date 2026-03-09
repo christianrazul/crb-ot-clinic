@@ -27,7 +27,7 @@ interface Session {
   scheduledDate?: Date;
   scheduledTime: string;
   durationMinutes?: number;
-  sessionType: "regular" | "ot_evaluation" | "make_up";
+  sessionType: "regular" | "ot_evaluation" | "make_up" | "st_session" | "sped_session";
   status: SessionStatus;
   startedAt?: Date | null;
   clinic: { id: string; name: string; code: string };

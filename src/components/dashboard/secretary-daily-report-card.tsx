@@ -10,6 +10,8 @@ function formatSessionType(sessionType: string): string {
   if (sessionType === "ot_evaluation") return "OT Evaluation";
   if (sessionType === "make_up") return "Make Up Session";
   if (sessionType === "regular") return "Regular Session";
+  if (sessionType === "st_session") return "ST Session";
+  if (sessionType === "sped_session") return "SPED Tutorial Session";
 
   return sessionType
     .split("_")

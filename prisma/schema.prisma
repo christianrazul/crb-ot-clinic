@@ -13,6 +13,7 @@ enum UserRole {
   licensed_ot
   unlicensed_ot
   st
+  sped_teacher
 }
 
 enum ClientStatus {
@@ -39,6 +40,8 @@ enum SessionType {
   regular
   ot_evaluation
   make_up
+  st_session
+  sped_session
 }
 
 enum PaymentType {
@@ -101,13 +104,14 @@ model Clinic {
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
-  users          User[]
-  clients        Client[]
-  sessions       Session[]
-  sessionRates   SessionRate[]
-  payments       Payment[]
-  auditLogs      AuditLog[]
-  attendanceLogs AttendanceLog[]
+  users              User[]
+  clients            Client[]
+  sessions           Session[]
+  sessionRates       SessionRate[]
+  clientSessionRates ClientSessionRate[]
+  payments           Payment[]
+  auditLogs          AuditLog[]
+  attendanceLogs     AttendanceLog[]
 
   @@map("clinics")
 }
@@ -233,6 +237,20 @@ model SessionRate {
   updatedAt     DateTime @updatedAt @map("updated_at")
 
   @@map("session_rates")
+}
+
+model ClientSessionRate {
+  id            String      @id @default(cuid())
+  clinic        Clinic      @relation(fields: [clinicId], references: [id])
+  clinicId      String      @map("clinic_id")
+  sessionType   SessionType @map("session_type")
+  ratePerSession Decimal    @map("rate_per_session") @db.Decimal(10, 2)
+  effectiveFrom DateTime    @map("effective_from")
+  effectiveTo   DateTime?   @map("effective_to")
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+
+  @@map("client_session_rates")
 }
 
 model Package {

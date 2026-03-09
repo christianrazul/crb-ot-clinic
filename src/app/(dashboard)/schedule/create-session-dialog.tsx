@@ -74,6 +74,8 @@ const sessionTypeOptions = [
   { value: "regular", label: "Regular Session" },
   { value: "ot_evaluation", label: "OT Evaluation" },
   { value: "make_up", label: "Make Up Session" },
+  { value: "st_session", label: "ST Session" },
+  { value: "sped_session", label: "SPED Tutorial Session" },
 ];
 
 const NEW_CLIENT_OPTION_VALUE = "__new_client__";

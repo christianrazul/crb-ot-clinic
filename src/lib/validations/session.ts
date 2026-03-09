@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-const sessionTypeSchema = z.enum(["regular", "ot_evaluation", "make_up"]);
+const sessionTypeSchema = z.enum(["regular", "ot_evaluation", "make_up", "st_session", "sped_session"]);
 const NEW_CLIENT_OPTION_VALUE = "__new_client__";
 
 function validateClientSelection(

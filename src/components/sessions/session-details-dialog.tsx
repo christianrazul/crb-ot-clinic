@@ -33,7 +33,7 @@ export interface SessionWithDetails {
   scheduledDate: Date;
   scheduledTime: string;
   durationMinutes: number;
-  sessionType: "regular" | "ot_evaluation" | "make_up";
+  sessionType: "regular" | "ot_evaluation" | "make_up" | "st_session" | "sped_session";
   status: SessionStatus;
   startedAt: Date | null;
   clinic: { id: string; name: string; code: string };
@@ -84,6 +84,8 @@ const sessionTypeLabels: Record<SessionWithDetails["sessionType"], string> = {
   regular: "Regular Session",
   ot_evaluation: "OT Evaluation",
   make_up: "Make Up Session",
+  st_session: "ST Session",
+  sped_session: "SPED Tutorial Session",
 };
 
 export function SessionDetailsDialog({
