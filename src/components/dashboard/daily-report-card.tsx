@@ -1,4 +1,12 @@
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { formatTime12hr } from "@/lib/utils";
 import { TherapistDailyReport } from "@/actions/sessions";
 
@@ -17,24 +25,33 @@ export function DailyReportCard({ report }: DailyReportCardProps) {
   return (
     <Card>
       <CardContent className="space-y-4 pt-6">
-        <div className="space-y-2">
-          <div className="grid grid-cols-[1fr_auto] gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            <span>Patient</span>
-            <span>Time</span>
-          </div>
-
-          {report.sessions.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No sessions scheduled today.</p>
-          ) : (
-            <div className="space-y-2">
-              {report.sessions.map((session) => (
-                <div key={session.id} className="grid grid-cols-[1fr_auto] gap-2 text-sm">
-                  <span className="truncate">{session.patientName}</span>
-                  <span className="text-muted-foreground">{formatTime12hr(session.scheduledTime)}</span>
-                </div>
-              ))}
-            </div>
-          )}
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Patient</TableHead>
+                <TableHead className="text-right">Time</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {report.sessions.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={2} className="text-center text-muted-foreground">
+                    No sessions scheduled today.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                report.sessions.map((session) => (
+                  <TableRow key={session.id}>
+                    <TableCell className="font-medium">{session.patientName}</TableCell>
+                    <TableCell className="text-right text-muted-foreground">
+                      {formatTime12hr(session.scheduledTime)}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
         </div>
 
         <div className="space-y-1 border-t pt-3 text-sm">

@@ -1,4 +1,12 @@
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { formatTime12hr } from "@/lib/utils";
 import { SecretaryDailyReport } from "@/actions/sessions";
 
@@ -8,10 +16,10 @@ interface SecretaryDailyReportCardProps {
 
 function formatSessionType(sessionType: string): string {
   if (sessionType === "ot_evaluation") return "OT Evaluation";
-  if (sessionType === "make_up") return "Make Up Session";
-  if (sessionType === "regular") return "Regular Session";
+  if (sessionType === "make_up") return "Make Up";
+  if (sessionType === "regular") return "Regular";
   if (sessionType === "st_session") return "ST Session";
-  if (sessionType === "sped_session") return "SPED Tutorial Session";
+  if (sessionType === "sped_session") return "SPED Tutorial";
 
   return sessionType
     .split("_")
@@ -30,28 +38,35 @@ export function SecretaryDailyReportCard({ report }: SecretaryDailyReportCardPro
   return (
     <Card>
       <CardContent className="space-y-4 pt-6">
-        <div className="space-y-2">
-          <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto] gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            <span>Patient</span>
-            <span>Therapist</span>
-            <span>Session Type</span>
-            <span className="text-right">Time</span>
-          </div>
-
-          {report.sessions.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No sessions scheduled today.</p>
-          ) : (
-            <div className="space-y-2">
-              {report.sessions.map((session) => (
-                <div key={session.id} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto] gap-2 text-sm">
-                  <span className="truncate">{session.patientName}</span>
-                  <span className="truncate text-left">{session.therapistName}</span>
-                  <span className="truncate text-left">{formatSessionType(session.sessionType)}</span>
-                  <span className="text-right text-muted-foreground">{formatTime12hr(session.scheduledTime)}</span>
-                </div>
-              ))}
-            </div>
-          )}
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Client</TableHead>
+                <TableHead>Time</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Therapist</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {report.sessions.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center text-muted-foreground">
+                    No sessions scheduled today.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                report.sessions.map((session) => (
+                  <TableRow key={session.id}>
+                    <TableCell className="font-medium">{session.patientName}</TableCell>
+                    <TableCell>{formatTime12hr(session.scheduledTime)}</TableCell>
+                    <TableCell>{formatSessionType(session.sessionType)}</TableCell>
+                    <TableCell>{session.therapistName}</TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
         </div>
 
         <div className="space-y-1 border-t pt-3 text-sm">

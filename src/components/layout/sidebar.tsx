@@ -74,16 +74,16 @@ const navItems: NavItem[] = [
     permission: "view_all_clients",
   },
   {
-    title: "Session Rates",
-    href: "/rates",
-    icon: CreditCard,
-    permission: "manage_rates",
-  },
-  {
     title: "Staff Management",
     href: "/admin/users",
     icon: Settings,
     permission: "manage_users",
+  },
+  {
+    title: "Session Rates",
+    href: "/rates",
+    icon: CreditCard,
+    permission: "manage_rates",
   },
 ];
 

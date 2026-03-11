@@ -1,8 +1,9 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth/auth";
-import { hasPermission } from "@/lib/auth/permissions";
+import { hasPermission, roleLabels, therapistRoles } from "@/lib/auth/permissions";
 import { db } from "@/lib/db";
 import { getClientSessionRates } from "@/actions/client-rates";
+import { getStaffSessionRates } from "@/actions/session-rates";
 import { SESSION_TYPE_LABELS } from "@/lib/session-types";
 import { SessionType } from "@prisma/client";
 import { RatesView } from "./rates-view";
@@ -33,29 +34,41 @@ export default async function RatesPage({ searchParams }: PageProps) {
   }
 
   const selectedClinicId = params.clinicId || clinics[0].id;
-  const ratesResult = await getClientSessionRates(selectedClinicId);
-  const rateMap = ratesResult.data ?? new Map();
+  const [clientRatesResult, staffRatesResult] = await Promise.all([
+    getClientSessionRates(selectedClinicId),
+    getStaffSessionRates(selectedClinicId),
+  ]);
+
+  const clientRateMap = clientRatesResult.data ?? new Map();
+  const staffRateMap = staffRatesResult.data ?? new Map();
 
   const allSessionTypes = Object.values(SessionType);
-  const rows = allSessionTypes.map((type) => ({
+  const clientRows = allSessionTypes.map((type) => ({
     sessionType: type,
     label: SESSION_TYPE_LABELS[type],
-    currentRate: rateMap.get(type)?.ratePerSession ?? null,
+    currentRate: clientRateMap.get(type)?.ratePerSession ?? null,
+  }));
+
+  const staffRows = therapistRoles.map((role) => ({
+    role,
+    label: roleLabels[role],
+    currentRate: staffRateMap.get(role)?.ratePerSession ?? null,
   }));
 
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">Client Session Rates</h2>
+        <h2 className="text-2xl font-bold tracking-tight">Session Rates</h2>
         <p className="text-muted-foreground">
-          Set the rates charged to clients per session type. Changes take effect immediately.
+          Manage client session rates by session type and staff session rates by therapist role.
         </p>
       </div>
 
       <RatesView
         clinics={clinics}
         selectedClinicId={selectedClinicId}
-        rows={rows}
+        clientRows={clientRows}
+        staffRows={staffRows}
       />
     </div>
   );

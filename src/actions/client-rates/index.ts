@@ -100,10 +100,34 @@ export async function upsertAllClientSessionRates(
     return { error: "No rates provided" };
   }
 
+  const currentRates = await db.clientSessionRate.findMany({
+    where: {
+      clinicId,
+      sessionType: { in: updates.map((update) => update.sessionType) },
+      effectiveTo: null,
+    },
+    orderBy: { effectiveFrom: "desc" },
+  });
+
+  const currentRateByType = new Map<SessionType, number>();
+  for (const rate of currentRates) {
+    if (!currentRateByType.has(rate.sessionType)) {
+      currentRateByType.set(rate.sessionType, Number(rate.ratePerSession));
+    }
+  }
+
+  const changedUpdates = updates.filter(
+    ({ sessionType, ratePerSession }) => currentRateByType.get(sessionType) !== ratePerSession
+  );
+
+  if (changedUpdates.length === 0) {
+    return { success: true };
+  }
+
   const now = new Date();
 
   await db.$transaction(async (tx) => {
-    for (const { sessionType, ratePerSession } of updates) {
+    for (const { sessionType, ratePerSession } of changedUpdates) {
       await tx.clientSessionRate.updateMany({
         where: { clinicId, sessionType, effectiveTo: null },
         data: { effectiveTo: now },
