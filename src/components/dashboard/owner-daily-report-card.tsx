@@ -78,7 +78,7 @@ function escapeCsvValue(value: string): string {
 
 export function OwnerDailyReportCard({ report }: OwnerDailyReportCardProps) {
   function handleExportCsv() {
-    const headers = ["Client", "Time", "Status", "Type", "Therapist", "Therapist Rate", "Clinic Rate", "Payment", "Mode of Payment", "Revenue"];
+    const headers = ["Client", "Time", "Status", "Type", "Therapist", "Therapist Rate", "Clinic Rate", "Payment", "Mode of Payment", "Profit"];
 
     const rows = report.sessions.map((session) => [
       session.patientName,
@@ -90,7 +90,7 @@ export function OwnerDailyReportCard({ report }: OwnerDailyReportCardProps) {
       session.clientRate > 0 ? session.clientRate.toFixed(2) : "",
       session.paymentStatus === "paid" ? "Paid" : "Unpaid",
       formatPaymentMethod(session.modeOfPayment),
-      session.paymentAmount > 0 ? session.paymentAmount.toFixed(2) : "",
+      session.clientRate > 0 || session.therapistRate > 0 ? (session.clientRate - session.therapistRate).toFixed(2) : "",
     ]);
 
     const summaryRows = [
@@ -139,7 +139,7 @@ export function OwnerDailyReportCard({ report }: OwnerDailyReportCardProps) {
                 <TableHead className="text-right">Clinic Rate</TableHead>
                 <TableHead className="text-center">Payment</TableHead>
                 <TableHead>Mode of Payment</TableHead>
-                <TableHead className="text-right">Revenue</TableHead>
+                <TableHead className="text-right">Profit</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -178,7 +178,9 @@ export function OwnerDailyReportCard({ report }: OwnerDailyReportCardProps) {
                       {formatPaymentMethod(session.modeOfPayment)}
                     </TableCell>
                     <TableCell className="text-right">
-                      {session.paymentAmount > 0 ? formatCurrency(session.paymentAmount) : "—"}
+                      {session.clientRate > 0 || session.therapistRate > 0
+                        ? formatCurrency(session.clientRate - session.therapistRate)
+                        : "—"}
                     </TableCell>
                   </TableRow>
                 ))
