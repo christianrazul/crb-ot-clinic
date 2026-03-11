@@ -25,7 +25,7 @@ export function DailyReportCard({ report }: DailyReportCardProps) {
   return (
     <Card>
       <CardContent className="space-y-4 pt-6">
-        <div className="rounded-md border">
+        <div className="rounded-md border bg-white">
           <Table>
             <TableHeader>
               <TableRow>
