@@ -15,6 +15,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { addBackupTherapist, removeBackupTherapist } from "@/actions/clients";
 import { roleLabels } from "@/lib/auth/permissions";
+import { RoleBadge } from "@/components/ui/role-badge";
 
 interface BackupTherapist {
   id: string;
@@ -91,9 +92,9 @@ export function BackupTherapistsSection({
                     <p className="font-medium">
                       {bt.therapist.firstName} {bt.therapist.lastName}
                     </p>
-                    <p className="text-sm text-muted-foreground">
-                      {roleLabels[bt.therapist.role]}
-                    </p>
+                    <div className="mt-0.5">
+                      <RoleBadge role={bt.therapist.role} />
+                    </div>
                   </div>
                 </div>
                 <Button

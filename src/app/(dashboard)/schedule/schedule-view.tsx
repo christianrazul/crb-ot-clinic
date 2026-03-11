@@ -18,7 +18,7 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn, formatTime12hr } from "@/lib/utils";
-import { roleLabels } from "@/lib/auth/permissions";
+import { RoleBadge } from "@/components/ui/role-badge";
 import { SessionDetailsDialog, SessionWithDetails } from "@/components/sessions/session-details-dialog";
 
 type ViewMode = "daily" | "weekly";
@@ -262,8 +262,8 @@ export function ScheduleView({
                               <div className="mt-1 text-sm">
                                 {s.therapist.firstName} {s.therapist.lastName}
                               </div>
-                              <div className="mt-1 text-xs opacity-75">
-                                {roleLabels[s.therapist.role]}
+                              <div className="mt-1">
+                                <RoleBadge role={s.therapist.role} />
                               </div>
                             </div>
                           ))}

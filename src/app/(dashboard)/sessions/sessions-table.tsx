@@ -22,7 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { roleLabels } from "@/lib/auth/permissions";
+import { RoleBadge } from "@/components/ui/role-badge";
 import { CancelSessionDialog } from "@/components/sessions/cancel-session-dialog";
 
 interface Session {
@@ -212,8 +212,8 @@ export function SessionsTable({
                     <div className="text-sm">
                       {session.therapist.firstName} {session.therapist.lastName}
                     </div>
-                    <div className="text-xs text-muted-foreground">
-                      {roleLabels[session.therapist.role]}
+                    <div className="mt-0.5">
+                      <RoleBadge role={session.therapist.role} />
                     </div>
                   </TableCell>
                   <TableCell>

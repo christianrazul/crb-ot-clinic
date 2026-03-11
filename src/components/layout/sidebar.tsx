@@ -115,7 +115,7 @@ export function Sidebar({
       <div className="flex h-14 items-center border-b px-4">
         <Link href="/dashboard" className="flex items-center gap-2">
           <Image src="/logo.jpg" alt="CRB OT Clinic logo" width={32} height={32} className="rounded-full" />
-          <span className="text-3xl text-primary leading-none" style={{ fontFamily: "var(--font-indigo-sky)", color: "#95cdfe" }}>CRB OT Clinic</span>
+          <span className="text-3xl text-primary" style={{ fontFamily: "var(--font-indigo-sky)", color: "#95cdfe" }}>CRB OT Clinic</span>
         </Link>
       </div>
       <ScrollArea className="flex-1 py-2">

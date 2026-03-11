@@ -20,7 +20,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { MoreHorizontal, Pencil, UserX, UserCheck } from "lucide-react";
-import { roleLabels } from "@/lib/auth/permissions";
+import { RoleBadge } from "@/components/ui/role-badge";
 import { toggleUserStatus } from "@/actions/users";
 import { EditUserDialog } from "./edit-user-dialog";
 
@@ -88,9 +88,7 @@ export function UsersTable({ users, clinics }: UsersTableProps) {
                   </TableCell>
                   <TableCell>{user.email}</TableCell>
                   <TableCell>
-                    <Badge variant="secondary">
-                      {roleLabels[user.role]}
-                    </Badge>
+                    <RoleBadge role={user.role} />
                   </TableCell>
                   <TableCell>
                     {user.primaryClinic?.code || "All Clinics"}

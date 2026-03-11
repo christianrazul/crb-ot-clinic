@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { roleLabels } from "@/lib/auth/permissions";
+import { RoleBadge } from "@/components/ui/role-badge";
 
 interface AuditLog {
   id: string;
@@ -185,8 +185,8 @@ export function AuditLogsTable({
                         ? `${log.user.firstName} ${log.user.lastName}`
                         : log.userEmail}
                     </div>
-                    <div className="text-xs text-muted-foreground">
-                      {roleLabels[log.userRole]}
+                    <div className="mt-0.5">
+                      <RoleBadge role={log.userRole} />
                     </div>
                   </TableCell>
                   <TableCell>

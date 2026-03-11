@@ -1,7 +1,8 @@
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { auth } from "@/lib/auth/auth";
-import { hasPermission, roleLabels } from "@/lib/auth/permissions";
+import { hasPermission } from "@/lib/auth/permissions";
+import { RoleBadge } from "@/components/ui/role-badge";
 import { getClient, getTherapists } from "@/actions/clients";
 import { getClinics } from "@/actions/users";
 import { format } from "date-fns";
@@ -184,9 +185,9 @@ export default async function ClientDetailPage({ params }: PageProps) {
                     {client.primaryTherapist.firstName}{" "}
                     {client.primaryTherapist.lastName}
                   </p>
-                  <p className="text-sm text-muted-foreground">
-                    {roleLabels[client.primaryTherapist.role]}
-                  </p>
+                  <div className="mt-0.5">
+                    <RoleBadge role={client.primaryTherapist.role} />
+                  </div>
                 </div>
               </div>
             ) : (

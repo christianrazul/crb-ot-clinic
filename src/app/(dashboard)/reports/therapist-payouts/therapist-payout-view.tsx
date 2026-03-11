@@ -27,7 +27,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { roleLabels } from "@/lib/auth/permissions";
+import { RoleBadge } from "@/components/ui/role-badge";
 import { formatTime12hr, cn } from "@/lib/utils";
 import {
   getTherapistPayoutReport,
@@ -289,7 +289,7 @@ export function TherapistPayoutView({
                     </TableCell>
                     <TableCell className="font-medium">{therapist.therapistName}</TableCell>
                     <TableCell>
-                      <Badge variant="outline">{roleLabels[therapist.therapistRole]}</Badge>
+                      <RoleBadge role={therapist.therapistRole} />
                     </TableCell>
                     <TableCell className="text-right">{therapist.sessionsCompleted}</TableCell>
                     <TableCell className="text-right">{therapist.sessionsPaid}</TableCell>

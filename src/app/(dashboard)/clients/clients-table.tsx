@@ -16,7 +16,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { roleLabels } from "@/lib/auth/permissions";
+import { RoleBadge } from "@/components/ui/role-badge";
 
 interface Client {
   id: string;
@@ -144,8 +144,8 @@ export function ClientsTable({ clients }: ClientsTableProps) {
                           {client.primaryTherapist.firstName}{" "}
                           {client.primaryTherapist.lastName}
                         </div>
-                        <div className="text-muted-foreground">
-                          {roleLabels[client.primaryTherapist.role]}
+                        <div className="mt-0.5">
+                          <RoleBadge role={client.primaryTherapist.role} />
                         </div>
                       </div>
                     ) : (
