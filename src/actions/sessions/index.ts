@@ -759,7 +759,7 @@ export async function createMultipleSessions(
     clientId: string | null;
     clientName?: string;
     therapistId: string;
-    sessionType: "regular" | "ot_evaluation" | "make_up";
+    sessionType: "regular" | "ot_evaluation" | "make_up" | "st_session" | "sped_session";
     scheduledDate: Date;
     scheduledTime: string;
     durationMinutes: number;
