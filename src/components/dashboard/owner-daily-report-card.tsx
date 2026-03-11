@@ -80,18 +80,21 @@ export function OwnerDailyReportCard({ report }: OwnerDailyReportCardProps) {
   function handleExportCsv() {
     const headers = ["Client", "Time", "Status", "Type", "Therapist", "Therapist Rate", "Clinic Rate", "Payment", "Mode of Payment", "Profit"];
 
-    const rows = report.sessions.map((session) => [
-      session.patientName,
-      formatTime12hr(session.scheduledTime),
-      formatSessionStatus(session.status),
-      formatSessionType(session.sessionType),
-      session.therapistName,
-      session.therapistRate > 0 ? session.therapistRate.toFixed(2) : "",
-      session.clientRate > 0 ? session.clientRate.toFixed(2) : "",
-      session.paymentStatus === "paid" ? "Paid" : "Unpaid",
-      formatPaymentMethod(session.modeOfPayment),
-      session.clientRate > 0 || session.therapistRate > 0 ? (session.clientRate - session.therapistRate).toFixed(2) : "",
-    ]);
+    const rows = report.sessions.map((session) => {
+      const isCancelled = session.status === "cancelled";
+      return [
+        session.patientName,
+        formatTime12hr(session.scheduledTime),
+        formatSessionStatus(session.status),
+        formatSessionType(session.sessionType),
+        session.therapistName,
+        isCancelled ? "—" : session.therapistRate > 0 ? session.therapistRate.toFixed(2) : "",
+        isCancelled ? "—" : session.clientRate > 0 ? session.clientRate.toFixed(2) : "",
+        isCancelled ? "—" : session.paymentStatus === "paid" ? "Paid" : "Unpaid",
+        isCancelled ? "—" : formatPaymentMethod(session.modeOfPayment),
+        isCancelled ? "—" : session.clientRate > 0 || session.therapistRate > 0 ? (session.clientRate - session.therapistRate).toFixed(2) : "",
+      ];
+    });
 
     const summaryRows = [
       [],
@@ -151,7 +154,7 @@ export function OwnerDailyReportCard({ report }: OwnerDailyReportCardProps) {
                 </TableRow>
               ) : (
                 report.sessions.map((session) => (
-                  <TableRow key={session.id}>
+                  <TableRow key={session.id} className={session.status === "cancelled" ? "opacity-60" : ""}>
                     <TableCell className="font-medium">{session.patientName}</TableCell>
                     <TableCell>{formatTime12hr(session.scheduledTime)}</TableCell>
                     <TableCell>
@@ -162,25 +165,33 @@ export function OwnerDailyReportCard({ report }: OwnerDailyReportCardProps) {
                     <TableCell>{formatSessionType(session.sessionType)}</TableCell>
                     <TableCell>{session.therapistName}</TableCell>
                     <TableCell className="text-right text-muted-foreground">
-                      {session.therapistRate > 0 ? formatCurrency(session.therapistRate) : "—"}
+                      {session.status === "cancelled"
+                        ? <span className="line-through">—</span>
+                        : session.therapistRate > 0 ? formatCurrency(session.therapistRate) : "—"}
                     </TableCell>
                     <TableCell className="text-right">
-                      {session.clientRate > 0 ? formatCurrency(session.clientRate) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
+                      {session.status === "cancelled"
+                        ? <span className="line-through text-muted-foreground">—</span>
+                        : session.clientRate > 0 ? formatCurrency(session.clientRate) : <span className="text-muted-foreground">—</span>}
                     </TableCell>
                     <TableCell className="text-center">
-                      <Badge variant={session.paymentStatus === "paid" ? "default" : "outline"}>
-                        {session.paymentStatus === "paid" ? "Paid" : "Unpaid"}
-                      </Badge>
+                      {session.status === "cancelled"
+                        ? <span className="line-through text-muted-foreground">—</span>
+                        : <Badge variant={session.paymentStatus === "paid" ? "default" : "outline"}>
+                            {session.paymentStatus === "paid" ? "Paid" : "Unpaid"}
+                          </Badge>}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {formatPaymentMethod(session.modeOfPayment)}
+                      {session.status === "cancelled"
+                        ? <span className="line-through">—</span>
+                        : formatPaymentMethod(session.modeOfPayment)}
                     </TableCell>
                     <TableCell className="text-right">
-                      {session.clientRate > 0 || session.therapistRate > 0
-                        ? formatCurrency(session.clientRate - session.therapistRate)
-                        : "—"}
+                      {session.status === "cancelled"
+                        ? <span className="line-through text-muted-foreground">—</span>
+                        : session.clientRate > 0 || session.therapistRate > 0
+                          ? formatCurrency(session.clientRate - session.therapistRate)
+                          : "—"}
                     </TableCell>
                   </TableRow>
                 ))

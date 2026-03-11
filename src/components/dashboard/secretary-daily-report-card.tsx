@@ -89,7 +89,7 @@ export function SecretaryDailyReportCard({ report }: SecretaryDailyReportCardPro
                 </TableRow>
               ) : (
                 report.sessions.map((session) => (
-                  <TableRow key={session.id}>
+                  <TableRow key={session.id} className={session.status === "cancelled" ? "opacity-60" : ""}>
                     <TableCell className="font-medium">{session.patientName}</TableCell>
                     <TableCell>{formatTime12hr(session.scheduledTime)}</TableCell>
                     <TableCell>
@@ -100,7 +100,9 @@ export function SecretaryDailyReportCard({ report }: SecretaryDailyReportCardPro
                     <TableCell>{formatSessionType(session.sessionType)}</TableCell>
                     <TableCell>{session.therapistName}</TableCell>
                     <TableCell className="text-muted-foreground">
-                      {formatPaymentMethod(session.modeOfPayment)}
+                      {session.status === "cancelled"
+                        ? <span className="line-through">—</span>
+                        : formatPaymentMethod(session.modeOfPayment)}
                     </TableCell>
                   </TableRow>
                 ))

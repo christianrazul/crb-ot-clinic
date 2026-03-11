@@ -244,9 +244,6 @@ export async function getSecretaryDailyReport(clinicId?: string): Promise<Action
         gte: dayStart,
         lte: dayEnd,
       },
-      status: {
-        not: SessionStatus.cancelled,
-      },
       ...(effectiveClinicId && { clinicId: effectiveClinicId }),
     },
     select: {
@@ -317,6 +314,8 @@ export async function getSecretaryDailyReport(clinicId?: string): Promise<Action
   let actualReceivedIncome = 0;
 
   for (const sessionRow of sessions) {
+    if (sessionRow.status === SessionStatus.cancelled) continue;
+
     const rateKey = `${sessionRow.clinicId}:${sessionRow.therapist.role}`;
     const sessionRate = rateByClinicAndRole.get(rateKey) || 0;
 
@@ -367,9 +366,6 @@ export async function getOwnerDailyReport(clinicId?: string): Promise<ActionStat
       scheduledDate: {
         gte: dayStart,
         lte: dayEnd,
-      },
-      status: {
-        not: SessionStatus.cancelled,
       },
       ...(effectiveClinicId && { clinicId: effectiveClinicId }),
     },
@@ -491,9 +487,13 @@ export async function getOwnerDailyReport(clinicId?: string): Promise<ActionStat
       (ps) => ps.payment.paymentMethod !== "none"
     )?.payment.paymentMethod ?? null;
 
-    totalClientExpected += clientRate;
-    totalClientReceived += paymentAmount;
-    totalTherapistPayout += therapistRate;
+    const isCancelled = sessionRow.status === SessionStatus.cancelled;
+
+    if (!isCancelled) {
+      totalClientExpected += clientRate;
+      totalClientReceived += paymentAmount;
+      totalTherapistPayout += therapistRate;
+    }
 
     return {
       id: sessionRow.id,
@@ -501,11 +501,11 @@ export async function getOwnerDailyReport(clinicId?: string): Promise<ActionStat
       scheduledTime: sessionRow.scheduledTime,
       sessionType: sessionRow.sessionType,
       therapistName: buildDisplayName(sessionRow.therapist, "Unassigned"),
-      clientRate,
-      therapistRate,
-      paymentStatus,
-      paymentAmount,
-      modeOfPayment: firstMethod,
+      clientRate: isCancelled ? 0 : clientRate,
+      therapistRate: isCancelled ? 0 : therapistRate,
+      paymentStatus: isCancelled ? "unpaid" as const : paymentStatus,
+      paymentAmount: isCancelled ? 0 : paymentAmount,
+      modeOfPayment: isCancelled ? null : firstMethod,
       status: sessionRow.status,
     };
   });
