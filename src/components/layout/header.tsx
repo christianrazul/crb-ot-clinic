@@ -37,7 +37,7 @@ export function Header({ onToggleSidebar }: HeaderProps) {
   const roleLabel = user?.role ? roleLabels[user.role as UserRole] : "";
 
   return (
-    <header className="flex h-14 items-center justify-between border-b bg-background px-6">
+    <header className="flex h-20 items-center justify-between border-b bg-background px-6">
       <div className="flex items-center gap-4">
         <Button
           variant="ghost"
