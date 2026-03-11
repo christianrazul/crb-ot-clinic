@@ -2,12 +2,10 @@ import { auth } from "@/lib/auth/auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { db } from "@/lib/db";
 import { hasPermission, isTherapist } from "@/lib/auth/permissions";
-import { getDailyRevenue } from "@/actions/payments";
-import { getExpectedIncomeToday } from "@/actions/attendance";
 import { getSecretaryDailyReport, getTherapistDailyReport, getOwnerDailyReport } from "@/actions/sessions";
 import { DashboardClinicSelector } from "./clinic-selector";
 import { format } from "date-fns";
-import { Calendar, ClipboardList, DollarSign } from "lucide-react";
+import { Calendar, ClipboardList } from "lucide-react";
 import { DailyReportCard } from "@/components/dashboard/daily-report-card";
 import { SecretaryDailyReportCard } from "@/components/dashboard/secretary-daily-report-card";
 import { OwnerDailyReportCard } from "@/components/dashboard/owner-daily-report-card";
@@ -33,8 +31,6 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const isSecretaryUser = user.role === "secretary";
   const isOwnerUser = user.role === "owner";
 
-  const canViewFinancials = hasPermission(user.role, "view_financial_reports");
-
   const clinics = await db.clinic.findMany({
     where: {
       isActive: true,
@@ -57,8 +53,6 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const [
     todaySessions,
     attendanceRecordsToday,
-    dailyRevenueResult,
-    expectedIncomeResult,
     therapistDailyReportResult,
     secretaryDailyReportResult,
     ownerDailyReportResult,
@@ -84,15 +78,11 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         ...(canViewAll && selectedClinicId && { clinicId: selectedClinicId }),
       },
     }),
-    canViewFinancials ? getDailyRevenue(new Date(), selectedClinicId) : { data: 0 },
-    canViewFinancials ? getExpectedIncomeToday(selectedClinicId) : { data: 0 },
     isTherapistUser ? getTherapistDailyReport(selectedClinicId) : { data: undefined },
     isSecretaryUser ? getSecretaryDailyReport(selectedClinicId) : { data: undefined },
     isOwnerUser ? getOwnerDailyReport(selectedClinicId) : { data: undefined },
   ]);
 
-  const dailyRevenue = dailyRevenueResult.data || 0;
-  const expectedIncomeToday = expectedIncomeResult.data || 0;
   const hasTherapistDailyReportError =
     "error" in therapistDailyReportResult && Boolean(therapistDailyReportResult.error);
   const hasSecretaryDailyReportError =
@@ -108,13 +98,6 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const ownerDailyReport = isOwnerUser && !hasOwnerDailyReportError
     ? ownerDailyReportResult.data
     : undefined;
-
-  function formatCurrency(amount: number): string {
-    return new Intl.NumberFormat("en-PH", {
-      style: "currency",
-      currency: "PHP",
-    }).format(amount);
-  }
 
   return (
     <div className="space-y-6">
