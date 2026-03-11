@@ -51,6 +51,17 @@ function formatSessionType(sessionType: string): string {
     .join(" ");
 }
 
+function formatPaymentMethod(method: string | null): string {
+  if (!method) return "—";
+  const map: Record<string, string> = {
+    cash: "Cash",
+    gcash: "GCash",
+    bank_transfer: "Bank Transfer",
+    none: "—",
+  };
+  return map[method] ?? method;
+}
+
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("en-PH", {
     style: "currency",
@@ -67,7 +78,7 @@ function escapeCsvValue(value: string): string {
 
 export function OwnerDailyReportCard({ report }: OwnerDailyReportCardProps) {
   function handleExportCsv() {
-    const headers = ["Client", "Time", "Status", "Type", "Therapist", "Therapist Rate", "Clinic Rate", "Payment", "Revenue"];
+    const headers = ["Client", "Time", "Status", "Type", "Therapist", "Therapist Rate", "Clinic Rate", "Payment", "Mode of Payment", "Revenue"];
 
     const rows = report.sessions.map((session) => [
       session.patientName,
@@ -78,15 +89,16 @@ export function OwnerDailyReportCard({ report }: OwnerDailyReportCardProps) {
       session.therapistRate > 0 ? session.therapistRate.toFixed(2) : "",
       session.clientRate > 0 ? session.clientRate.toFixed(2) : "",
       session.paymentStatus === "paid" ? "Paid" : "Unpaid",
+      formatPaymentMethod(session.modeOfPayment),
       session.paymentAmount > 0 ? session.paymentAmount.toFixed(2) : "",
     ]);
 
     const summaryRows = [
       [],
-      ["Expected from Clients", "", "", "", "", "", "", "", report.totalClientExpected.toFixed(2)],
-      ["Therapist Payout", "", "", "", "", "", "", "", (-report.totalTherapistPayout).toFixed(2)],
-      ["Collected Revenue", "", "", "", "", "", "", "", report.totalClientReceived.toFixed(2)],
-      ["Net Income", "", "", "", "", "", "", "", report.netIncome.toFixed(2)],
+      ["Expected from Clients", "", "", "", "", "", "", "", "", report.totalClientExpected.toFixed(2)],
+      ["Therapist Payout", "", "", "", "", "", "", "", "", (-report.totalTherapistPayout).toFixed(2)],
+      ["Collected Revenue", "", "", "", "", "", "", "", "", report.totalClientReceived.toFixed(2)],
+      ["Net Income", "", "", "", "", "", "", "", "", report.netIncome.toFixed(2)],
     ];
 
     const allRows = [headers, ...rows, ...summaryRows];
@@ -123,13 +135,14 @@ export function OwnerDailyReportCard({ report }: OwnerDailyReportCardProps) {
                 <TableHead className="text-right">Therapist Rate</TableHead>
                 <TableHead className="text-right">Clinic Rate</TableHead>
                 <TableHead className="text-center">Payment</TableHead>
+                <TableHead>Mode of Payment</TableHead>
                 <TableHead className="text-right">Revenue</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {report.sessions.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center text-muted-foreground">
+                  <TableCell colSpan={10} className="text-center text-muted-foreground">
                     No sessions scheduled today.
                   </TableCell>
                 </TableRow>
@@ -157,6 +170,9 @@ export function OwnerDailyReportCard({ report }: OwnerDailyReportCardProps) {
                       <Badge variant={session.paymentStatus === "paid" ? "default" : "outline"}>
                         {session.paymentStatus === "paid" ? "Paid" : "Unpaid"}
                       </Badge>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {formatPaymentMethod(session.modeOfPayment)}
                     </TableCell>
                     <TableCell className="text-right">
                       {session.paymentAmount > 0 ? formatCurrency(session.paymentAmount) : "—"}

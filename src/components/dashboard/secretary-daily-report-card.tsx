@@ -46,6 +46,17 @@ function formatSessionType(sessionType: string): string {
     .join(" ");
 }
 
+function formatPaymentMethod(method: string | null): string {
+  if (!method) return "—";
+  const map: Record<string, string> = {
+    cash: "Cash",
+    gcash: "GCash",
+    bank_transfer: "Bank Transfer",
+    none: "—",
+  };
+  return map[method] ?? method;
+}
+
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("en-PH", {
     style: "currency",
@@ -66,12 +77,13 @@ export function SecretaryDailyReportCard({ report }: SecretaryDailyReportCardPro
                 <TableHead>Status</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Therapist</TableHead>
+                <TableHead>Mode of Payment</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {report.sessions.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground">
+                  <TableCell colSpan={6} className="text-center text-muted-foreground">
                     No sessions scheduled today.
                   </TableCell>
                 </TableRow>
@@ -87,6 +99,9 @@ export function SecretaryDailyReportCard({ report }: SecretaryDailyReportCardPro
                     </TableCell>
                     <TableCell>{formatSessionType(session.sessionType)}</TableCell>
                     <TableCell>{session.therapistName}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {formatPaymentMethod(session.modeOfPayment)}
+                    </TableCell>
                   </TableRow>
                 ))
               )}

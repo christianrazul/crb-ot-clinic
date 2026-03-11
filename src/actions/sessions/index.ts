@@ -39,6 +39,7 @@ export type SecretaryDailyReport = {
     sessionType: string;
     scheduledTime: string;
     status: string;
+    modeOfPayment: string | null;
   }[];
 };
 
@@ -57,6 +58,7 @@ export type OwnerDailyReport = {
     therapistRate: number;
     paymentStatus: "paid" | "unpaid";
     paymentAmount: number;
+    modeOfPayment: string | null;
     status: string;
   }[];
 };
@@ -272,6 +274,16 @@ export async function getSecretaryDailyReport(clinicId?: string): Promise<Action
           lastName: true,
         },
       },
+      paymentSessions: {
+        select: {
+          payment: {
+            select: {
+              status: true,
+              paymentMethod: true,
+            },
+          },
+        },
+      },
     },
     orderBy: { scheduledTime: "asc" },
   });
@@ -318,14 +330,22 @@ export async function getSecretaryDailyReport(clinicId?: string): Promise<Action
     data: {
       totalExpectedIncome,
       actualReceivedIncome,
-      sessions: sessions.map((sessionRow) => ({
-        id: sessionRow.id,
-        patientName: buildDisplayName(sessionRow.client, sessionRow.clientName || "New client"),
-        therapistName: buildDisplayName(sessionRow.therapist, "Unassigned"),
-        sessionType: sessionRow.sessionType,
-        scheduledTime: sessionRow.scheduledTime,
-        status: sessionRow.status,
-      })),
+      sessions: sessions.map((sessionRow) => {
+        const firstMethod = sessionRow.paymentSessions
+          .filter((ps) => ps.payment.status !== "refunded")
+          .find((ps) => ps.payment.paymentMethod !== "none")
+          ?.payment.paymentMethod ?? null;
+
+        return {
+          id: sessionRow.id,
+          patientName: buildDisplayName(sessionRow.client, sessionRow.clientName || "New client"),
+          therapistName: buildDisplayName(sessionRow.therapist, "Unassigned"),
+          sessionType: sessionRow.sessionType,
+          scheduledTime: sessionRow.scheduledTime,
+          status: sessionRow.status,
+          modeOfPayment: firstMethod,
+        };
+      }),
     },
   };
 }
@@ -378,6 +398,7 @@ export async function getOwnerDailyReport(clinicId?: string): Promise<ActionStat
           payment: {
             select: {
               status: true,
+              paymentMethod: true,
             },
           },
         },
@@ -447,9 +468,12 @@ export async function getOwnerDailyReport(clinicId?: string): Promise<ActionStat
     const clientRateKey = `${sessionRow.clinicId}:${sessionRow.sessionType}`;
     const clientRate = clientRateByClinicAndType.get(clientRateKey) || 0;
 
-    const paymentSessionAmount = sessionRow.paymentSessions
-      .filter((ps) => ps.payment.status !== "refunded")
-      .reduce((sum, ps) => sum + Number(ps.amount), 0);
+    const validPaymentSessions = sessionRow.paymentSessions.filter(
+      (ps) => ps.payment.status !== "refunded"
+    );
+    const paymentSessionAmount = validPaymentSessions.reduce(
+      (sum, ps) => sum + Number(ps.amount), 0
+    );
 
     const paidViaAttendance = sessionRow.attendanceLogs.some(
       (log) => log.paymentStatus === "PAID"
@@ -461,6 +485,10 @@ export async function getOwnerDailyReport(clinicId?: string): Promise<ActionStat
       : 0;
 
     const paymentStatus: "paid" | "unpaid" = isPaid ? "paid" : "unpaid";
+
+    const firstMethod = validPaymentSessions.find(
+      (ps) => ps.payment.paymentMethod !== "none"
+    )?.payment.paymentMethod ?? null;
 
     totalClientExpected += clientRate;
     totalClientReceived += paymentAmount;
@@ -476,6 +504,7 @@ export async function getOwnerDailyReport(clinicId?: string): Promise<ActionStat
       therapistRate,
       paymentStatus,
       paymentAmount,
+      modeOfPayment: firstMethod,
       status: sessionRow.status,
     };
   });
