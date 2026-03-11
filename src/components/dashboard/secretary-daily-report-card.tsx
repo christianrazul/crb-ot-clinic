@@ -1,4 +1,5 @@
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -12,6 +13,24 @@ import { SecretaryDailyReport } from "@/actions/sessions";
 
 interface SecretaryDailyReportCardProps {
   report: SecretaryDailyReport;
+}
+
+function formatSessionStatus(status: string): string {
+  const map: Record<string, string> = {
+    scheduled: "Scheduled",
+    in_progress: "In Progress",
+    completed: "Completed",
+    cancelled: "Cancelled",
+    no_show: "No Show",
+  };
+  return map[status] ?? status;
+}
+
+function sessionStatusVariant(status: string): "default" | "secondary" | "destructive" | "outline" {
+  if (status === "completed") return "default";
+  if (status === "in_progress") return "secondary";
+  if (status === "no_show" || status === "cancelled") return "destructive";
+  return "outline";
 }
 
 function formatSessionType(sessionType: string): string {
@@ -44,6 +63,7 @@ export function SecretaryDailyReportCard({ report }: SecretaryDailyReportCardPro
               <TableRow>
                 <TableHead>Client</TableHead>
                 <TableHead>Time</TableHead>
+                <TableHead>Status</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Therapist</TableHead>
               </TableRow>
@@ -51,7 +71,7 @@ export function SecretaryDailyReportCard({ report }: SecretaryDailyReportCardPro
             <TableBody>
               {report.sessions.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center text-muted-foreground">
+                  <TableCell colSpan={5} className="text-center text-muted-foreground">
                     No sessions scheduled today.
                   </TableCell>
                 </TableRow>
@@ -60,6 +80,11 @@ export function SecretaryDailyReportCard({ report }: SecretaryDailyReportCardPro
                   <TableRow key={session.id}>
                     <TableCell className="font-medium">{session.patientName}</TableCell>
                     <TableCell>{formatTime12hr(session.scheduledTime)}</TableCell>
+                    <TableCell>
+                      <Badge variant={sessionStatusVariant(session.status)}>
+                        {formatSessionStatus(session.status)}
+                      </Badge>
+                    </TableCell>
                     <TableCell>{formatSessionType(session.sessionType)}</TableCell>
                     <TableCell>{session.therapistName}</TableCell>
                   </TableRow>

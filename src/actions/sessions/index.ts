@@ -25,6 +25,7 @@ export type TherapistDailyReport = {
     id: string;
     patientName: string;
     scheduledTime: string;
+    status: string;
   }[];
 };
 
@@ -37,6 +38,7 @@ export type SecretaryDailyReport = {
     therapistName: string;
     sessionType: string;
     scheduledTime: string;
+    status: string;
   }[];
 };
 
@@ -55,6 +57,7 @@ export type OwnerDailyReport = {
     therapistRate: number;
     paymentStatus: "paid" | "unpaid";
     paymentAmount: number;
+    status: string;
   }[];
 };
 
@@ -159,6 +162,7 @@ export async function getTherapistDailyReport(clinicId?: string): Promise<Action
       id: true,
       clientName: true,
       scheduledTime: true,
+      status: true,
       verifiedAt: true,
       clinicId: true,
       verifiedBy: {
@@ -214,6 +218,7 @@ export async function getTherapistDailyReport(clinicId?: string): Promise<Action
           ? `${sessionRow.client.firstName} ${sessionRow.client.lastName}`
           : sessionRow.clientName || "New client",
         scheduledTime: sessionRow.scheduledTime,
+        status: sessionRow.status,
       })),
     },
   };
@@ -247,6 +252,7 @@ export async function getSecretaryDailyReport(clinicId?: string): Promise<Action
       clientName: true,
       sessionType: true,
       scheduledTime: true,
+      status: true,
       verifiedAt: true,
       verifiedBy: {
         select: {
@@ -318,6 +324,7 @@ export async function getSecretaryDailyReport(clinicId?: string): Promise<Action
         therapistName: buildDisplayName(sessionRow.therapist, "Unassigned"),
         sessionType: sessionRow.sessionType,
         scheduledTime: sessionRow.scheduledTime,
+        status: sessionRow.status,
       })),
     },
   };
@@ -351,6 +358,7 @@ export async function getOwnerDailyReport(clinicId?: string): Promise<ActionStat
       clientName: true,
       sessionType: true,
       scheduledTime: true,
+      status: true,
       client: {
         select: {
           firstName: true,
@@ -468,6 +476,7 @@ export async function getOwnerDailyReport(clinicId?: string): Promise<ActionStat
       therapistRate,
       paymentStatus,
       paymentAmount,
+      status: sessionRow.status,
     };
   });
 

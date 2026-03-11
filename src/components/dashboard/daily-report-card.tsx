@@ -1,4 +1,5 @@
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -12,6 +13,24 @@ import { TherapistDailyReport } from "@/actions/sessions";
 
 interface DailyReportCardProps {
   report: TherapistDailyReport;
+}
+
+function formatSessionStatus(status: string): string {
+  const map: Record<string, string> = {
+    scheduled: "Scheduled",
+    in_progress: "In Progress",
+    completed: "Completed",
+    cancelled: "Cancelled",
+    no_show: "No Show",
+  };
+  return map[status] ?? status;
+}
+
+function sessionStatusVariant(status: string): "default" | "secondary" | "destructive" | "outline" {
+  if (status === "completed") return "default";
+  if (status === "in_progress") return "secondary";
+  if (status === "no_show" || status === "cancelled") return "destructive";
+  return "outline";
 }
 
 function formatCurrency(amount: number): string {
@@ -30,13 +49,14 @@ export function DailyReportCard({ report }: DailyReportCardProps) {
             <TableHeader>
               <TableRow>
                 <TableHead>Patient</TableHead>
-                <TableHead className="text-right">Time</TableHead>
+                <TableHead>Time</TableHead>
+                <TableHead className="text-right">Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {report.sessions.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={2} className="text-center text-muted-foreground">
+                  <TableCell colSpan={3} className="text-center text-muted-foreground">
                     No sessions scheduled today.
                   </TableCell>
                 </TableRow>
@@ -44,8 +64,13 @@ export function DailyReportCard({ report }: DailyReportCardProps) {
                 report.sessions.map((session) => (
                   <TableRow key={session.id}>
                     <TableCell className="font-medium">{session.patientName}</TableCell>
-                    <TableCell className="text-right text-muted-foreground">
+                    <TableCell className="text-muted-foreground">
                       {formatTime12hr(session.scheduledTime)}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Badge variant={sessionStatusVariant(session.status)}>
+                        {formatSessionStatus(session.status)}
+                      </Badge>
                     </TableCell>
                   </TableRow>
                 ))

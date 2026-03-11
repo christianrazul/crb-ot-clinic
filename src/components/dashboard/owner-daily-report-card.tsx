@@ -15,6 +15,24 @@ interface OwnerDailyReportCardProps {
   report: OwnerDailyReport;
 }
 
+function formatSessionStatus(status: string): string {
+  const map: Record<string, string> = {
+    scheduled: "Scheduled",
+    in_progress: "In Progress",
+    completed: "Completed",
+    cancelled: "Cancelled",
+    no_show: "No Show",
+  };
+  return map[status] ?? status;
+}
+
+function sessionStatusVariant(status: string): "default" | "secondary" | "destructive" | "outline" {
+  if (status === "completed") return "default";
+  if (status === "in_progress") return "secondary";
+  if (status === "no_show" || status === "cancelled") return "destructive";
+  return "outline";
+}
+
 function formatSessionType(sessionType: string): string {
   if (sessionType === "ot_evaluation") return "OT Evaluation";
   if (sessionType === "make_up") return "Make Up";
@@ -45,6 +63,7 @@ export function OwnerDailyReportCard({ report }: OwnerDailyReportCardProps) {
               <TableRow>
                 <TableHead>Client</TableHead>
                 <TableHead>Time</TableHead>
+                <TableHead>Status</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Therapist</TableHead>
                 <TableHead className="text-right">Therapist Rate</TableHead>
@@ -56,7 +75,7 @@ export function OwnerDailyReportCard({ report }: OwnerDailyReportCardProps) {
             <TableBody>
               {report.sessions.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center text-muted-foreground">
+                  <TableCell colSpan={9} className="text-center text-muted-foreground">
                     No sessions scheduled today.
                   </TableCell>
                 </TableRow>
@@ -65,6 +84,11 @@ export function OwnerDailyReportCard({ report }: OwnerDailyReportCardProps) {
                   <TableRow key={session.id}>
                     <TableCell className="font-medium">{session.patientName}</TableCell>
                     <TableCell>{formatTime12hr(session.scheduledTime)}</TableCell>
+                    <TableCell>
+                      <Badge variant={sessionStatusVariant(session.status)}>
+                        {formatSessionStatus(session.status)}
+                      </Badge>
+                    </TableCell>
                     <TableCell>{formatSessionType(session.sessionType)}</TableCell>
                     <TableCell>{session.therapistName}</TableCell>
                     <TableCell className="text-right text-muted-foreground">
