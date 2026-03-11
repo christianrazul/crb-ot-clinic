@@ -44,6 +44,7 @@ export type SecretaryDailyReport = {
 };
 
 export type OwnerDailyReport = {
+  clinicName: string;
   totalClientExpected: number;
   totalClientReceived: number;
   totalTherapistPayout: number;
@@ -509,8 +510,13 @@ export async function getOwnerDailyReport(clinicId?: string): Promise<ActionStat
     };
   });
 
+  const clinic = effectiveClinicId
+    ? await db.clinic.findUnique({ where: { id: effectiveClinicId }, select: { name: true } })
+    : null;
+
   return {
     data: {
+      clinicName: clinic?.name ?? "",
       totalClientExpected,
       totalClientReceived,
       totalTherapistPayout,

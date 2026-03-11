@@ -108,7 +108,10 @@ export function OwnerDailyReportCard({ report }: OwnerDailyReportCardProps) {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `daily-report-${format(new Date(), "yyyy-MM-dd")}.csv`;
+    const clinicSlug = report.clinicName
+      ? `-${report.clinicName.toLowerCase().replace(/\s+/g, "-")}`
+      : "";
+    link.download = `daily-report${clinicSlug}-${format(new Date(), "yyyy-MM-dd")}.csv`;
     link.click();
     URL.revokeObjectURL(url);
   }
