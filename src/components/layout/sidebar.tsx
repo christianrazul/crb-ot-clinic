@@ -10,18 +10,26 @@ import {
   ClipboardList,
   CreditCard,
   Settings,
-  LogOut,
   CalendarDays,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { hasPermission, isTherapist } from "@/lib/auth/permissions";
-import { signOut } from "next-auth/react";
+import { hasPermission, isTherapist, roleLabels } from "@/lib/auth/permissions";
+import { signOut, useSession } from "next-auth/react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { UserRole } from "@prisma/client";
 
 interface SidebarProps {
   userRole: string;
-  isOpen: boolean;
 }
 
 interface NavItem {
@@ -88,11 +96,19 @@ const navItems: NavItem[] = [
   },
 ];
 
-export function Sidebar({
-  userRole,
-  isOpen,
-}: SidebarProps) {
+export function Sidebar({ userRole }: SidebarProps) {
   const pathname = usePathname();
+  const { data: session } = useSession();
+  const user = session?.user;
+
+  const initials =
+    user?.name
+      ?.split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase() || "?";
+
+  const roleLabel = user?.role ? roleLabels[user.role as UserRole] : "";
 
   const filteredNavItems = navItems.filter((item) => {
     if (item.therapistOnly) {
@@ -105,13 +121,7 @@ export function Sidebar({
   });
 
   return (
-    <div
-      className={cn(
-        "h-full w-64 flex-col border-r bg-background",
-        isOpen ? "flex" : "hidden",
-        "md:flex"
-      )}
-    >
+    <div className="hidden h-full w-64 flex-col border-r bg-background md:flex">
       <div className="flex h-20 items-center border-b px-4">
         <Link href="/dashboard" className="flex items-center gap-2">
           <Image src="/logo.jpg" alt="CRB OT Clinic logo" width={32} height={32} className="rounded-full" />
@@ -140,14 +150,36 @@ export function Sidebar({
         </nav>
       </ScrollArea>
       <div className="border-t p-2">
-        <Button
-          variant="ghost"
-          className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground"
-          onClick={() => signOut({ callbackUrl: "/login" })}
-        >
-          <LogOut className="h-4 w-4" />
-          Sign Out
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="flex w-full items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-accent">
+              <Avatar className="h-8 w-8">
+                <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
+              <div className="text-left">
+                <p className="text-sm font-medium">{user?.name}</p>
+                <Badge variant="secondary" className="text-xs">
+                  {roleLabel}
+                </Badge>
+              </div>
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent side="top" align="start" className="w-56">
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <Link href="/account">My Account</Link>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => signOut({ callbackUrl: "/login" })}
+              className="text-destructive focus:text-destructive"
+            >
+              Sign out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   );
