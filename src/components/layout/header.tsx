@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
+import Link from "next/link";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -69,6 +70,10 @@ export function Header({ onToggleSidebar }: HeaderProps) {
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuLabel>My Account</DropdownMenuLabel>
             <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <Link href="/account">Profile settings</Link>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={() => signOut({ callbackUrl: "/login" })}
               className="text-destructive focus:text-destructive"
@@ -91,6 +96,7 @@ function getPageTitle(pathname: string) {
     "/payments": "Payments",
     "/my-schedule": "My Schedule",
     "/admin/users": "Staff Management",
+    "/account": "My Account",
   };
 
   for (const [path, title] of Object.entries(titles)) {
