@@ -6,14 +6,17 @@ const Card = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
 >(({ className, ...props }, ref) => (
-  <div
-    ref={ref}
-    className={cn(
-      "rounded-xl border bg-card text-card-foreground shadow",
-      className
-    )}
-    {...props}
-  />
+  <div className="group/card relative">
+    <div className="pointer-events-none absolute -inset-[1px] rounded-xl bg-gradient-to-br from-[#95cdfe] via-[#d6b9dd] to-[#fea3ba] opacity-0 transition-opacity duration-300 group-hover/card:opacity-100" />
+    <div
+      ref={ref}
+      className={cn(
+        "relative rounded-xl border bg-card text-card-foreground shadow",
+        className
+      )}
+      {...props}
+    />
+  </div>
 ))
 Card.displayName = "Card"
 
