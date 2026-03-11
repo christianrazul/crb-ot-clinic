@@ -7,7 +7,8 @@ import { login, LoginState } from "@/actions/auth/login";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
+import Image from "next/image";
 
 const initialState: LoginState = {};
 
@@ -34,11 +35,10 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/30 px-4">
       <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl">CRB OT Clinic</CardTitle>
-          <CardDescription>
-            Sign in to your account to continue
-          </CardDescription>
+        <CardHeader className="flex flex-col items-center gap-2">
+          <Image src="/logo.jpg" alt="CRB OT Clinic logo" width={256} height={256} className="rounded-full" />
+          <span className="text-4xl" style={{ fontFamily: "var(--font-indigo-sky)", color: "#95cdfe" }}>CRB OT Clinic</span>
+          <CardDescription>Sign in to your account to continue</CardDescription>
         </CardHeader>
         <CardContent>
           <form action={formAction} className="space-y-4">
@@ -66,6 +66,7 @@ export default function LoginPage() {
                 id="password"
                 name="password"
                 type="password"
+                placeholder="password"
                 required
                 autoComplete="current-password"
               />
