@@ -44,6 +44,7 @@ export function Header({ onToggleSidebar }: HeaderProps) {
           size="icon"
           onClick={onToggleSidebar}
           aria-label="Toggle sidebar"
+          className="md:hidden"
         >
           <Menu className="h-5 w-5" />
         </Button>
