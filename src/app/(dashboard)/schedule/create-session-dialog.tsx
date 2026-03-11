@@ -122,11 +122,18 @@ export function CreateSessionDialog({
   }, [defaultClinicId]);
 
   useEffect(() => {
-    if (singleState.success || multipleState.success) {
+    if (singleState.success) {
       setOpen(false);
       resetForm();
     }
-  }, [singleState.success, multipleState.success, resetForm]);
+  }, [singleState, resetForm]);
+
+  useEffect(() => {
+    if (multipleState.success) {
+      setOpen(false);
+      resetForm();
+    }
+  }, [multipleState, resetForm]);
 
   const filteredClients = clients.filter(
     (c) => !selectedClinic || c.mainClinicId === selectedClinic

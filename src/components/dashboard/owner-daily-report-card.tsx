@@ -1,5 +1,8 @@
-import { Card, CardContent } from "@/components/ui/card";
+"use client";
+
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -10,6 +13,8 @@ import {
 } from "@/components/ui/table";
 import { formatTime12hr } from "@/lib/utils";
 import { OwnerDailyReport } from "@/actions/sessions";
+import { Download } from "lucide-react";
+import { format } from "date-fns";
 
 interface OwnerDailyReportCardProps {
   report: OwnerDailyReport;
@@ -53,10 +58,59 @@ function formatCurrency(amount: number): string {
   }).format(amount);
 }
 
+function escapeCsvValue(value: string): string {
+  if (value.includes(",") || value.includes('"') || value.includes("\n")) {
+    return `"${value.replace(/"/g, '""')}"`;
+  }
+  return value;
+}
+
 export function OwnerDailyReportCard({ report }: OwnerDailyReportCardProps) {
+  function handleExportCsv() {
+    const headers = ["Client", "Time", "Status", "Type", "Therapist", "Therapist Rate", "Clinic Rate", "Payment", "Revenue"];
+
+    const rows = report.sessions.map((session) => [
+      session.patientName,
+      formatTime12hr(session.scheduledTime),
+      formatSessionStatus(session.status),
+      formatSessionType(session.sessionType),
+      session.therapistName,
+      session.therapistRate > 0 ? session.therapistRate.toFixed(2) : "",
+      session.clientRate > 0 ? session.clientRate.toFixed(2) : "",
+      session.paymentStatus === "paid" ? "Paid" : "Unpaid",
+      session.paymentAmount > 0 ? session.paymentAmount.toFixed(2) : "",
+    ]);
+
+    const summaryRows = [
+      [],
+      ["Expected from Clients", "", "", "", "", "", "", "", report.totalClientExpected.toFixed(2)],
+      ["Therapist Payout", "", "", "", "", "", "", "", (-report.totalTherapistPayout).toFixed(2)],
+      ["Collected Revenue", "", "", "", "", "", "", "", report.totalClientReceived.toFixed(2)],
+      ["Net Income", "", "", "", "", "", "", "", report.netIncome.toFixed(2)],
+    ];
+
+    const allRows = [headers, ...rows, ...summaryRows];
+    const csv = allRows.map((row) => row.map(escapeCsvValue).join(",")).join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `daily-report-${format(new Date(), "yyyy-MM-dd")}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <Card>
-      <CardContent className="space-y-4 pt-6">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium">Today&apos;s Report</CardTitle>
+        <Button variant="outline" size="sm" onClick={handleExportCsv}>
+          <Download className="mr-2 h-4 w-4" />
+          Export CSV
+        </Button>
+      </CardHeader>
+      <CardContent className="space-y-4 pt-2">
         <div className="rounded-md border bg-white">
           <Table>
             <TableHeader>
