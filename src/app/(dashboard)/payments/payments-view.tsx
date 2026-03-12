@@ -24,6 +24,7 @@ interface Payment {
   paymentSource: PaymentSource;
   creditType: CreditType;
   receiptNumber: string | null;
+  notes: string | null;
   paymentDate: Date;
   client: {
     id: string;

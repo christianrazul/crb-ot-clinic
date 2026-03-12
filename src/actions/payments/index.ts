@@ -105,7 +105,16 @@ export async function getPayments(
     return sum;
   }, 0);
 
-  return { data: { payments, total } };
+  const serializedPayments = payments.map((p) => ({
+    ...p,
+    amount: Number(p.amount),
+    paymentSessions: p.paymentSessions.map((ps) => ({
+      ...ps,
+      amount: Number(ps.amount),
+    })),
+  }));
+
+  return { data: { payments: serializedPayments, total } };
 }
 
 export async function recordPayment(

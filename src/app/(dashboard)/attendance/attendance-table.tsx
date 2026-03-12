@@ -28,6 +28,7 @@ interface AttendanceLog {
   client: { id: string; firstName: string; lastName: string };
   primaryTherapist: { id: string; firstName: string; lastName: string; role?: string } | null;
   loggedBy: { id: string; firstName: string; lastName: string };
+  session: { sessionType: string } | null;
 }
 
 interface AttendanceTableProps {

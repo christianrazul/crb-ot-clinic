@@ -7,7 +7,7 @@ import { hasPermission, canAccessClinic } from "@/lib/auth/permissions";
 import { logAttendanceSchema } from "@/lib/validations/attendance";
 import { createAuditLog } from "@/lib/audit";
 import { startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from "date-fns";
-import { PaymentMethod, PaymentStatus, PaymentSource, CreditType, UserRole, AttendancePaymentStatus, SessionStatus } from "@prisma/client";
+import { PaymentMethod, PaymentStatus, PaymentSource, CreditType, UserRole, AttendancePaymentStatus, SessionStatus, SessionType } from "@prisma/client";
 
 export type ActionState = {
   error?: string;
@@ -41,6 +41,24 @@ async function hasSessionLinkedPaidPayment(
   });
 
   return !!linkedPaidSession;
+}
+
+async function resolveClinicRate(
+  clinicId: string,
+  sessionType: SessionType
+): Promise<number> {
+  const now = new Date();
+  const rate = await db.clientSessionRate.findFirst({
+    where: {
+      clinicId,
+      sessionType,
+      effectiveFrom: { lte: now },
+      OR: [{ effectiveTo: null }, { effectiveTo: { gte: now } }],
+    },
+    orderBy: { effectiveFrom: "desc" },
+  });
+
+  return Number(rate?.ratePerSession || 0);
 }
 
 async function resolveAttendanceRate(
@@ -211,6 +229,7 @@ export async function getAttendanceLogs(clinicId?: string, dateFilter: DateFilte
       client: { select: { id: true, firstName: true, lastName: true } },
       primaryTherapist: { select: { id: true, firstName: true, lastName: true, role: true } },
       loggedBy: { select: { id: true, firstName: true, lastName: true } },
+      session: { select: { sessionType: true } },
     },
     orderBy: { loggedAt: "desc" },
   });
@@ -229,6 +248,10 @@ export async function markAttendanceAsPaid(
 
   const attendanceLogId = (formData.get("attendanceLogId") as string | null)?.trim();
   const paymentMethodInput = (formData.get("paymentMethod") as string | null) || "cash";
+  const paymentSourceInput = (formData.get("paymentSource") as string | null) || "client";
+  const sessionTypeInput = (formData.get("sessionType") as string | null)?.trim();
+  const paymentNotes = (formData.get("paymentNotes") as string | null)?.trim() || null;
+  const referenceNumber = (formData.get("referenceNumber") as string | null)?.trim() || null;
 
   if (!attendanceLogId) {
     return { error: "Attendance log is required" };
@@ -242,24 +265,21 @@ export async function markAttendanceAsPaid(
       ? paymentMethodInput
       : "cash";
 
+  const paymentSource: PaymentSource =
+    paymentSourceInput === "client" ||
+    paymentSourceInput === "dswd" ||
+    paymentSourceInput === "cswdo" ||
+    paymentSourceInput === "other_govt"
+      ? paymentSourceInput
+      : "client";
+
+  const sessionType: SessionType | null =
+    sessionTypeInput && Object.values(SessionType).includes(sessionTypeInput as SessionType)
+      ? (sessionTypeInput as SessionType)
+      : null;
+
   const attendanceLog = await db.attendanceLog.findUnique({
     where: { id: attendanceLogId },
-    include: {
-      primaryTherapist: {
-        select: {
-          role: true,
-        },
-      },
-      client: {
-        select: {
-          primaryTherapist: {
-            select: {
-              role: true,
-            },
-          },
-        },
-      },
-    },
   });
 
   if (!attendanceLog) {
@@ -277,8 +297,11 @@ export async function markAttendanceAsPaid(
     return { success: true, data: { paymentStatus: "PAID" } };
   }
 
-  const therapistRole = attendanceLog.primaryTherapist?.role || attendanceLog.client.primaryTherapist?.role || null;
-  const amount = await resolveAttendanceRate(attendanceLog.clinicId, therapistRole);
+  if (!sessionType) {
+    return { error: "A valid session type is required to resolve the rate" };
+  }
+
+  const amount = await resolveClinicRate(attendanceLog.clinicId, sessionType);
 
   if (amount <= 0) {
     return { error: "No active session rate found for this attendance record" };
@@ -292,12 +315,13 @@ export async function markAttendanceAsPaid(
         paymentType: "per_session",
         amount,
         paymentMethod,
-        paymentSource: PaymentSource.client,
+        paymentSource,
         creditType: CreditType.regular,
         sessionsPaid: 1,
         recordedById: session.user.id,
         status: PaymentStatus.completed,
-        notes: `${ATTENDANCE_NOTE_PREFIX}${attendanceLog.id}] Attendance payment`,
+        notes: `${ATTENDANCE_NOTE_PREFIX}${attendanceLog.id}] Attendance payment${paymentNotes ? ` - ${paymentNotes}` : ""}`,
+        receiptNumber: referenceNumber ?? undefined,
       },
     });
 
@@ -393,6 +417,22 @@ export async function getExpectedIncomeToday(clinicId?: string) {
   }
 
   return { data: totalExpectedIncome };
+}
+
+export async function getAttendanceRate(clinicId: string, sessionType: string): Promise<{ data?: number; error?: string }> {
+  const session = await auth();
+  if (!session?.user || !hasPermission(session.user.role, "collect_payments")) {
+    return { error: "Unauthorized" };
+  }
+
+  const validSessionType = Object.values(SessionType).includes(sessionType as SessionType)
+    ? (sessionType as SessionType)
+    : null;
+
+  if (!validSessionType) return { data: 0 };
+
+  const amount = await resolveClinicRate(clinicId, validSessionType);
+  return { data: amount };
 }
 
 export async function getClientTodaySessions(clientId: string, clinicId: string) {

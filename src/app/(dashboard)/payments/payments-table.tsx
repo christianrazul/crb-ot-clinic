@@ -18,6 +18,7 @@ interface Payment {
   paymentSource: PaymentSource;
   creditType: CreditType;
   receiptNumber: string | null;
+  notes: string | null;
   paymentDate: Date;
   client: {
     id: string;
@@ -77,6 +78,15 @@ const creditTypeBadgeVariant: Record<CreditType, "default" | "secondary" | "outl
   no_payment: "outline",
 };
 
+const ATTENDANCE_NOTE_PATTERN = /^\[attendance-log:[^\]]+\] Attendance payment(?: - (.+))?$/;
+
+function extractDisplayNote(notes: string | null): string {
+  if (!notes) return "-";
+  const match = notes.match(ATTENDANCE_NOTE_PATTERN);
+  if (match) return match[1] || "-";
+  return notes;
+}
+
 function formatCurrency(amount: number | { toString(): string }): string {
   const numAmount = typeof amount === "number" ? amount : parseFloat(amount.toString());
   return new Intl.NumberFormat("en-PH", {
@@ -104,6 +114,7 @@ export function PaymentsTable({ payments }: PaymentsTableProps) {
           <TableHead>Source</TableHead>
           <TableHead>Charged To</TableHead>
           <TableHead>Receipt #</TableHead>
+          <TableHead>Notes</TableHead>
           <TableHead className="text-right">Amount</TableHead>
         </TableRow>
       </TableHeader>
@@ -137,6 +148,9 @@ export function PaymentsTable({ payments }: PaymentsTableProps) {
               </TableCell>
               <TableCell>
                 {payment.receiptNumber || "-"}
+              </TableCell>
+              <TableCell className="max-w-[200px] truncate text-muted-foreground">
+                {extractDisplayNote(payment.notes)}
               </TableCell>
               <TableCell className="text-right font-medium">
                 {formatCurrency(payment.amount)}
