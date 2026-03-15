@@ -5,15 +5,20 @@ import { getUsers, getClinics } from "@/actions/users";
 import { UsersTable } from "./users-table";
 import { CreateUserDialog } from "./create-user-dialog";
 
-export default async function UsersPage() {
+interface PageProps {
+  searchParams: Promise<{ clinic?: string }>;
+}
+
+export default async function UsersPage({ searchParams }: PageProps) {
   const session = await auth();
+  const params = await searchParams;
 
   if (!session?.user || !hasPermission(session.user.role, "manage_users")) {
     redirect("/dashboard");
   }
 
   const [usersResult, clinics] = await Promise.all([
-    getUsers(),
+    getUsers(params.clinic),
     getClinics(),
   ]);
 

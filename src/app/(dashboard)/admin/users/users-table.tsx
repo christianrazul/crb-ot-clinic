@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { UserRole } from "@prisma/client";
 import { format } from "date-fns";
 import {
@@ -19,6 +20,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { MoreHorizontal, Pencil, UserX, UserCheck } from "lucide-react";
 import { RoleBadge } from "@/components/ui/role-badge";
 import { toggleUserStatus } from "@/actions/users";
@@ -52,14 +60,46 @@ interface UsersTableProps {
 }
 
 export function UsersTable({ users, clinics }: UsersTableProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [editingUser, setEditingUser] = useState<User | null>(null);
 
   async function handleToggleStatus(userId: string) {
     await toggleUserStatus(userId);
   }
 
+  function handleClinicChange(value: string) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (value === "all") {
+      params.delete("clinic");
+    } else {
+      params.set("clinic", value);
+    }
+    router.push(`/admin/users?${params.toString()}`);
+  }
+
   return (
     <>
+      {clinics.length > 1 && (
+        <div className="flex justify-end mb-4">
+          <Select
+            value={searchParams.get("clinic") || "all"}
+            onValueChange={handleClinicChange}
+          >
+            <SelectTrigger className="w-auto min-w-[180px]">
+              <SelectValue placeholder="All Clinics" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Clinics</SelectItem>
+              {clinics.map((clinic) => (
+                <SelectItem key={clinic.id} value={clinic.id}>
+                  {clinic.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
       <div className="rounded-md border">
         <Table>
           <TableHeader>

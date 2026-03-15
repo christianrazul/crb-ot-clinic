@@ -7,7 +7,7 @@ import { ClientsTable } from "./clients-table";
 import { CreateClientDialog } from "./create-client-dialog";
 
 interface PageProps {
-  searchParams: Promise<{ search?: string }>;
+  searchParams: Promise<{ search?: string; clinic?: string }>;
 }
 
 export default async function ClientsPage({ searchParams }: PageProps) {
@@ -19,7 +19,7 @@ export default async function ClientsPage({ searchParams }: PageProps) {
   }
 
   const [clientsResult, clinics, therapists] = await Promise.all([
-    getClients(params.search),
+    getClients(params.search, params.clinic),
     getClinics(),
     getTherapists(),
   ]);

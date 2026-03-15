@@ -13,7 +13,7 @@ export type ActionState = {
   data?: unknown;
 };
 
-export async function getClients(search?: string) {
+export async function getClients(search?: string, clinicId?: string) {
   const session = await auth();
   if (!session?.user || !hasPermission(session.user.role, "view_all_clients")) {
     return { error: "Unauthorized" };
@@ -21,9 +21,11 @@ export async function getClients(search?: string) {
 
   const clients = await db.client.findMany({
     where: {
-      ...(session.user.primaryClinicId && {
-        mainClinicId: session.user.primaryClinicId,
-      }),
+      ...(session.user.primaryClinicId
+        ? { mainClinicId: session.user.primaryClinicId }
+        : clinicId
+          ? { mainClinicId: clinicId }
+          : {}),
       ...(search && {
         OR: [
           { firstName: { contains: search, mode: "insensitive" } },

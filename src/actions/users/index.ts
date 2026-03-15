@@ -14,13 +14,16 @@ export type ActionState = {
   data?: unknown;
 };
 
-export async function getUsers() {
+export async function getUsers(clinicId?: string) {
   const session = await auth();
   if (!session?.user || !hasPermission(session.user.role, "manage_users")) {
     return { error: "Unauthorized" };
   }
 
   const users = await db.user.findMany({
+    where: {
+      ...(clinicId && { primaryClinicId: clinicId }),
+    },
     select: {
       id: true,
       email: true,

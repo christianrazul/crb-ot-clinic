@@ -16,6 +16,13 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { RoleBadge } from "@/components/ui/role-badge";
 
 interface Client {
@@ -65,7 +72,7 @@ const statusColors: Record<ClientStatus, "default" | "secondary" | "destructive"
   discharged: "destructive",
 };
 
-export function ClientsTable({ clients }: ClientsTableProps) {
+export function ClientsTable({ clients, clinics }: ClientsTableProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [search, setSearch] = useState(searchParams.get("search") || "");
@@ -81,23 +88,53 @@ export function ClientsTable({ clients }: ClientsTableProps) {
     router.push(`/clients?${params.toString()}`);
   }
 
+  function handleClinicChange(value: string) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (value === "all") {
+      params.delete("clinic");
+    } else {
+      params.set("clinic", value);
+    }
+    router.push(`/clients?${params.toString()}`);
+  }
+
   return (
     <div className="space-y-4">
-      <form onSubmit={handleSearch} className="flex gap-2">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Search clients..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-8"
-          />
-        </div>
-        <Button type="submit" variant="secondary">
-          Search
-        </Button>
-      </form>
+      <div className="flex gap-2">
+        <form onSubmit={handleSearch} className="flex gap-2 flex-1">
+          <div className="relative flex-1 max-w-sm">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="search"
+              placeholder="Search clients..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-8"
+            />
+          </div>
+          <Button type="submit" variant="secondary">
+            Search
+          </Button>
+        </form>
+        {clinics.length > 1 && (
+          <Select
+            value={searchParams.get("clinic") || "all"}
+            onValueChange={handleClinicChange}
+          >
+            <SelectTrigger className="w-auto min-w-[180px]">
+              <SelectValue placeholder="All Clinics" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Clinics</SelectItem>
+              {clinics.map((clinic) => (
+                <SelectItem key={clinic.id} value={clinic.id}>
+                  {clinic.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+      </div>
 
       <div className="rounded-md border">
         <Table>
