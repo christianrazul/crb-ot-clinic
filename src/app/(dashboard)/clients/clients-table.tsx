@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ClientStatus, Gender, UserRole } from "@prisma/client";
-import { Search, Eye } from "lucide-react";
+import { Search, Ellipsis } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -197,7 +197,7 @@ export function ClientsTable({ clients, clinics }: ClientsTableProps) {
                   <TableCell>
                     <Link href={`/clients/${client.id}`}>
                       <Button variant="ghost" size="icon">
-                        <Eye className="h-4 w-4" />
+                        <Ellipsis className="h-4 w-4" />
                       </Button>
                     </Link>
                   </TableCell>
