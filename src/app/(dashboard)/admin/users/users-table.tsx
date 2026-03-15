@@ -27,7 +27,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { MoreHorizontal, Pencil, UserX, UserCheck } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { MoreHorizontal, Pencil, Search, UserX, UserCheck } from "lucide-react";
 import { RoleBadge } from "@/components/ui/role-badge";
 import { toggleUserStatus } from "@/actions/users";
 import { EditUserDialog } from "./edit-user-dialog";
@@ -63,9 +64,21 @@ export function UsersTable({ users, clinics }: UsersTableProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [search, setSearch] = useState(searchParams.get("search") || "");
 
   async function handleToggleStatus(userId: string) {
     await toggleUserStatus(userId);
+  }
+
+  function handleSearch(e: React.FormEvent) {
+    e.preventDefault();
+    const params = new URLSearchParams(searchParams.toString());
+    if (search) {
+      params.set("search", search);
+    } else {
+      params.delete("search");
+    }
+    router.push(`/admin/users?${params.toString()}`);
   }
 
   function handleClinicChange(value: string) {
@@ -80,8 +93,23 @@ export function UsersTable({ users, clinics }: UsersTableProps) {
 
   return (
     <>
-      {clinics.length > 1 && (
-        <div className="flex justify-end mb-4">
+      <div className="flex gap-2 mb-4">
+        <form onSubmit={handleSearch} className="flex gap-2 flex-1">
+          <div className="relative flex-1 max-w-sm">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="search"
+              placeholder="Search staff..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-8"
+            />
+          </div>
+          <Button type="submit" variant="secondary">
+            Search
+          </Button>
+        </form>
+        {clinics.length > 1 && (
           <Select
             value={searchParams.get("clinic") || "all"}
             onValueChange={handleClinicChange}
@@ -98,8 +126,8 @@ export function UsersTable({ users, clinics }: UsersTableProps) {
               ))}
             </SelectContent>
           </Select>
-        </div>
-      )}
+        )}
+      </div>
       <div className="rounded-md border">
         <Table>
           <TableHeader>

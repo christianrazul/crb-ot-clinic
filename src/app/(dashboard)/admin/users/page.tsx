@@ -6,7 +6,7 @@ import { UsersTable } from "./users-table";
 import { CreateUserDialog } from "./create-user-dialog";
 
 interface PageProps {
-  searchParams: Promise<{ clinic?: string }>;
+  searchParams: Promise<{ clinic?: string; search?: string }>;
 }
 
 export default async function UsersPage({ searchParams }: PageProps) {
@@ -18,7 +18,7 @@ export default async function UsersPage({ searchParams }: PageProps) {
   }
 
   const [usersResult, clinics] = await Promise.all([
-    getUsers(params.clinic),
+    getUsers(params.clinic, params.search),
     getClinics(),
   ]);
 

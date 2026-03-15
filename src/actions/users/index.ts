@@ -14,7 +14,7 @@ export type ActionState = {
   data?: unknown;
 };
 
-export async function getUsers(clinicId?: string) {
+export async function getUsers(clinicId?: string, search?: string) {
   const session = await auth();
   if (!session?.user || !hasPermission(session.user.role, "manage_users")) {
     return { error: "Unauthorized" };
@@ -23,6 +23,13 @@ export async function getUsers(clinicId?: string) {
   const users = await db.user.findMany({
     where: {
       ...(clinicId && { primaryClinicId: clinicId }),
+      ...(search && {
+        OR: [
+          { firstName: { contains: search, mode: "insensitive" } },
+          { lastName: { contains: search, mode: "insensitive" } },
+          { email: { contains: search, mode: "insensitive" } },
+        ],
+      }),
     },
     select: {
       id: true,
@@ -41,7 +48,7 @@ export async function getUsers(clinicId?: string) {
         },
       },
     },
-    orderBy: { createdAt: "desc" },
+    orderBy: [{ isActive: "desc" }, { createdAt: "desc" }],
   });
 
   return { data: users };
