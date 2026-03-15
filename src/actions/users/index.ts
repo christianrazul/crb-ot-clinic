@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { auth } from "@/lib/auth/auth";
 import { hasPermission } from "@/lib/auth/permissions";
 import { createUserSchema, updateUserSchema } from "@/lib/validations/user";
-import { UserRole } from "@prisma/client";
+import { UserRole, Prisma } from "@prisma/client";
 
 export type ActionState = {
   error?: string;
@@ -14,44 +14,55 @@ export type ActionState = {
   data?: unknown;
 };
 
-export async function getUsers(clinicId?: string, search?: string) {
+const PAGE_SIZE = 10;
+
+export async function getUsers(clinicId?: string, search?: string, page = 1) {
   const session = await auth();
   if (!session?.user || !hasPermission(session.user.role, "manage_users")) {
     return { error: "Unauthorized" };
   }
 
-  const users = await db.user.findMany({
-    where: {
-      ...(clinicId && { primaryClinicId: clinicId }),
-      ...(search && {
-        OR: [
-          { firstName: { contains: search, mode: "insensitive" } },
-          { lastName: { contains: search, mode: "insensitive" } },
-          { email: { contains: search, mode: "insensitive" } },
-        ],
-      }),
-    },
-    select: {
-      id: true,
-      email: true,
-      firstName: true,
-      lastName: true,
-      role: true,
-      primaryClinicId: true,
-      isActive: true,
-      createdAt: true,
-      primaryClinic: {
-        select: {
-          id: true,
-          name: true,
-          code: true,
-        },
+  const where: Prisma.UserWhereInput = {
+    ...(clinicId && { primaryClinicId: clinicId }),
+    ...(search && {
+      OR: [
+        { firstName: { contains: search, mode: "insensitive" } },
+        { lastName: { contains: search, mode: "insensitive" } },
+        { email: { contains: search, mode: "insensitive" } },
+      ],
+    }),
+  };
+
+  const select = {
+    id: true,
+    email: true,
+    firstName: true,
+    lastName: true,
+    role: true,
+    primaryClinicId: true,
+    isActive: true,
+    createdAt: true,
+    primaryClinic: {
+      select: {
+        id: true,
+        name: true,
+        code: true,
       },
     },
-    orderBy: [{ isActive: "desc" }, { createdAt: "desc" }],
-  });
+  };
 
-  return { data: users };
+  const [users, total] = await Promise.all([
+    db.user.findMany({
+      where,
+      select,
+      orderBy: [{ isActive: "desc" }, { createdAt: "desc" }],
+      skip: (page - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
+    }),
+    db.user.count({ where }),
+  ]);
+
+  return { data: users, total };
 }
 
 export async function getClinics() {

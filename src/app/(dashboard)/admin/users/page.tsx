@@ -6,7 +6,7 @@ import { UsersTable } from "./users-table";
 import { CreateUserDialog } from "./create-user-dialog";
 
 interface PageProps {
-  searchParams: Promise<{ clinic?: string; search?: string }>;
+  searchParams: Promise<{ clinic?: string; search?: string; page?: string }>;
 }
 
 export default async function UsersPage({ searchParams }: PageProps) {
@@ -17,8 +17,10 @@ export default async function UsersPage({ searchParams }: PageProps) {
     redirect("/dashboard");
   }
 
+  const page = Math.max(1, parseInt(params.page ?? "1", 10) || 1);
+
   const [usersResult, clinics] = await Promise.all([
-    getUsers(params.clinic, params.search),
+    getUsers(params.clinic, params.search, page),
     getClinics(),
   ]);
 
@@ -38,7 +40,7 @@ export default async function UsersPage({ searchParams }: PageProps) {
         <CreateUserDialog clinics={clinics} />
       </div>
 
-      <UsersTable users={usersResult.data || []} clinics={clinics} />
+      <UsersTable users={usersResult.data || []} clinics={clinics} total={usersResult.total ?? 0} page={page} />
     </div>
   );
 }

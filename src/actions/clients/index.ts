@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { auth } from "@/lib/auth/auth";
 import { hasPermission, canAccessClinic, therapistRoles } from "@/lib/auth/permissions";
 import { createClientSchema, updateClientSchema } from "@/lib/validations/client";
-import { ClientStatus } from "@prisma/client";
+import { ClientStatus, Prisma } from "@prisma/client";
 
 export type ActionState = {
   error?: string;
@@ -13,47 +13,56 @@ export type ActionState = {
   data?: unknown;
 };
 
-export async function getClients(search?: string, clinicId?: string) {
+const PAGE_SIZE = 10;
+
+export async function getClients(search?: string, clinicId?: string, page = 1) {
   const session = await auth();
   if (!session?.user || !hasPermission(session.user.role, "view_all_clients")) {
     return { error: "Unauthorized" };
   }
 
-  const clients = await db.client.findMany({
-    where: {
-      ...(session.user.primaryClinicId
-        ? { mainClinicId: session.user.primaryClinicId }
-        : clinicId
-          ? { mainClinicId: clinicId }
-          : {}),
-      ...(search && {
-        OR: [
-          { firstName: { contains: search, mode: "insensitive" } },
-          { lastName: { contains: search, mode: "insensitive" } },
-          { guardianName: { contains: search, mode: "insensitive" } },
-        ],
-      }),
-    },
-    include: {
-      mainClinic: {
-        select: { id: true, name: true, code: true },
-      },
-      primaryTherapist: {
-        select: { id: true, firstName: true, lastName: true, role: true },
-      },
-      backupTherapists: {
-        include: {
-          therapist: {
-            select: { id: true, firstName: true, lastName: true, role: true },
-          },
-        },
-        orderBy: { priority: "asc" },
-      },
-    },
-    orderBy: { lastName: "asc" },
-  });
+  const where: Prisma.ClientWhereInput = {
+    ...(session.user.primaryClinicId
+      ? { mainClinicId: session.user.primaryClinicId }
+      : clinicId
+        ? { mainClinicId: clinicId }
+        : {}),
+    ...(search && {
+      OR: [
+        { firstName: { contains: search, mode: "insensitive" } },
+        { lastName: { contains: search, mode: "insensitive" } },
+        { guardianName: { contains: search, mode: "insensitive" } },
+      ],
+    }),
+  };
 
-  return { data: clients };
+  const [clients, total] = await Promise.all([
+    db.client.findMany({
+      where,
+      include: {
+        mainClinic: {
+          select: { id: true, name: true, code: true },
+        },
+        primaryTherapist: {
+          select: { id: true, firstName: true, lastName: true, role: true },
+        },
+        backupTherapists: {
+          include: {
+            therapist: {
+              select: { id: true, firstName: true, lastName: true, role: true },
+            },
+          },
+          orderBy: { priority: "asc" },
+        },
+      },
+      orderBy: { lastName: "asc" },
+      skip: (page - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
+    }),
+    db.client.count({ where }),
+  ]);
+
+  return { data: clients, total };
 }
 
 export async function getClient(id: string) {

@@ -7,7 +7,7 @@ import { ClientsTable } from "./clients-table";
 import { CreateClientDialog } from "./create-client-dialog";
 
 interface PageProps {
-  searchParams: Promise<{ search?: string; clinic?: string }>;
+  searchParams: Promise<{ search?: string; clinic?: string; page?: string }>;
 }
 
 export default async function ClientsPage({ searchParams }: PageProps) {
@@ -18,8 +18,10 @@ export default async function ClientsPage({ searchParams }: PageProps) {
     redirect("/dashboard");
   }
 
+  const page = Math.max(1, parseInt(params.page ?? "1", 10) || 1);
+
   const [clientsResult, clinics, therapists] = await Promise.all([
-    getClients(params.search, params.clinic),
+    getClients(params.search, params.clinic, page),
     getClinics(),
     getTherapists(),
   ]);
@@ -44,6 +46,8 @@ export default async function ClientsPage({ searchParams }: PageProps) {
         clients={clientsResult.data || []}
         clinics={clinics}
         therapists={therapists}
+        total={clientsResult.total ?? 0}
+        page={page}
       />
     </div>
   );

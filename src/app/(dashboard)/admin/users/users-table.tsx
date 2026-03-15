@@ -55,16 +55,28 @@ interface Clinic {
   code: string;
 }
 
+const PAGE_SIZE = 10;
+
 interface UsersTableProps {
   users: User[];
   clinics: Clinic[];
+  total: number;
+  page: number;
 }
 
-export function UsersTable({ users, clinics }: UsersTableProps) {
+export function UsersTable({ users, clinics, total, page }: UsersTableProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [search, setSearch] = useState(searchParams.get("search") || "");
+
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+
+  function handlePageChange(newPage: number) {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("page", String(newPage));
+    router.push(`/admin/users?${params.toString()}`);
+  }
 
   async function handleToggleStatus(userId: string) {
     await toggleUserStatus(userId);
@@ -78,6 +90,7 @@ export function UsersTable({ users, clinics }: UsersTableProps) {
     } else {
       params.delete("search");
     }
+    params.delete("page");
     router.push(`/admin/users?${params.toString()}`);
   }
 
@@ -88,6 +101,7 @@ export function UsersTable({ users, clinics }: UsersTableProps) {
     } else {
       params.set("clinic", value);
     }
+    params.delete("page");
     router.push(`/admin/users?${params.toString()}`);
   }
 
@@ -205,6 +219,32 @@ export function UsersTable({ users, clinics }: UsersTableProps) {
           </TableBody>
         </Table>
       </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between mt-4">
+          <p className="text-sm text-muted-foreground">
+            Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} of {total}
+          </p>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handlePageChange(page - 1)}
+              disabled={page <= 1}
+            >
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handlePageChange(page + 1)}
+              disabled={page >= totalPages}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      )}
 
       {editingUser && (
         <EditUserDialog

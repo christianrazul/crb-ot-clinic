@@ -60,10 +60,14 @@ interface Therapist {
   role: UserRole;
 }
 
+const PAGE_SIZE = 10;
+
 interface ClientsTableProps {
   clients: Client[];
   clinics: Clinic[];
   therapists: Therapist[];
+  total: number;
+  page: number;
 }
 
 const statusColors: Record<ClientStatus, "default" | "secondary" | "destructive"> = {
@@ -72,10 +76,18 @@ const statusColors: Record<ClientStatus, "default" | "secondary" | "destructive"
   discharged: "destructive",
 };
 
-export function ClientsTable({ clients, clinics }: ClientsTableProps) {
+export function ClientsTable({ clients, clinics, total, page }: ClientsTableProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [search, setSearch] = useState(searchParams.get("search") || "");
+
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+
+  function handlePageChange(newPage: number) {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("page", String(newPage));
+    router.push(`/clients?${params.toString()}`);
+  }
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -85,6 +97,7 @@ export function ClientsTable({ clients, clinics }: ClientsTableProps) {
     } else {
       params.delete("search");
     }
+    params.delete("page");
     router.push(`/clients?${params.toString()}`);
   }
 
@@ -95,6 +108,7 @@ export function ClientsTable({ clients, clinics }: ClientsTableProps) {
     } else {
       params.set("clinic", value);
     }
+    params.delete("page");
     router.push(`/clients?${params.toString()}`);
   }
 
@@ -207,6 +221,32 @@ export function ClientsTable({ clients, clinics }: ClientsTableProps) {
           </TableBody>
         </Table>
       </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-muted-foreground">
+            Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} of {total}
+          </p>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handlePageChange(page - 1)}
+              disabled={page <= 1}
+            >
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handlePageChange(page + 1)}
+              disabled={page >= totalPages}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
