@@ -251,6 +251,37 @@ export async function updateClient(
   return { success: true };
 }
 
+export async function setClientStatus(
+  clientId: string,
+  status: ClientStatus
+): Promise<ActionState> {
+  const session = await auth();
+  if (!session?.user || !hasPermission(session.user.role, "manage_clients")) {
+    return { error: "Unauthorized" };
+  }
+
+  const client = await db.client.findUnique({ where: { id: clientId } });
+  if (!client) {
+    return { error: "Client not found" };
+  }
+
+  if (
+    session.user.primaryClinicId &&
+    !canAccessClinic(session.user.role, session.user.primaryClinicId, client.mainClinicId)
+  ) {
+    return { error: "Unauthorized" };
+  }
+
+  await db.client.update({
+    where: { id: clientId },
+    data: { status },
+  });
+
+  revalidatePath("/clients");
+  revalidatePath(`/clients/${clientId}`);
+  return { success: true };
+}
+
 export async function addBackupTherapist(
   clientId: string,
   therapistId: string

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useFormState } from "react-dom";
 import { ClientStatus, Gender, UserRole } from "@prisma/client";
 import { Pencil } from "lucide-react";
@@ -26,7 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { updateClient, ActionState } from "@/actions/clients";
+import { updateClient, setClientStatus, ActionState } from "@/actions/clients";
 import { roleLabels } from "@/lib/auth/permissions";
 
 interface Client {
@@ -78,6 +78,7 @@ export function EditClientDialog({ client, clinics, therapists }: EditClientDial
   const [open, setOpen] = useState(false);
   const [selectedClinic, setSelectedClinic] = useState(client.mainClinicId);
   const [state, formAction] = useFormState(updateClient, initialState);
+  const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
     if (state.success) {
@@ -289,11 +290,34 @@ export function EditClientDialog({ client, clinics, therapists }: EditClientDial
             </div>
           </div>
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-              Cancel
+          <DialogFooter className="sm:justify-between">
+            <Button
+              type="button"
+              variant={client.status === ClientStatus.inactive ? "outline" : "destructive"}
+              disabled={isPending}
+              onClick={() => {
+                const newStatus =
+                  client.status === ClientStatus.inactive
+                    ? ClientStatus.active
+                    : ClientStatus.inactive;
+                startTransition(async () => {
+                  await setClientStatus(client.id, newStatus);
+                  setOpen(false);
+                });
+              }}
+            >
+              {isPending
+                ? "Saving..."
+                : client.status === ClientStatus.inactive
+                  ? "Activate"
+                  : "Deactivate"}
             </Button>
-            <SubmitButton pendingText="Saving...">Save Changes</SubmitButton>
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                Cancel
+              </Button>
+              <SubmitButton pendingText="Saving...">Save Changes</SubmitButton>
+            </div>
           </DialogFooter>
         </form>
       </DialogContent>
