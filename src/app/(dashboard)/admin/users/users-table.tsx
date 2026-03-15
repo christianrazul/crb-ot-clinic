@@ -150,7 +150,7 @@ export function UsersTable({ users, clinics }: UsersTableProps) {
               </TableRow>
             ) : (
               users.map((user) => (
-                <TableRow key={user.id}>
+                <TableRow key={user.id} className={!user.isActive ? "opacity-50" : undefined}>
                   <TableCell className="font-medium">
                     {user.firstName} {user.lastName}
                   </TableCell>
@@ -162,7 +162,7 @@ export function UsersTable({ users, clinics }: UsersTableProps) {
                     {user.primaryClinic?.code || "All Clinics"}
                   </TableCell>
                   <TableCell>
-                    <Badge variant={user.isActive ? "default" : "destructive"}>
+                    <Badge variant={user.isActive ? "default" : "secondary"}>
                       {user.isActive ? "Active" : "Inactive"}
                     </Badge>
                   </TableCell>

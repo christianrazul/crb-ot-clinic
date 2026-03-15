@@ -157,7 +157,7 @@ export function ClientsTable({ clients, clinics }: ClientsTableProps) {
               </TableRow>
             ) : (
               clients.map((client) => (
-                <TableRow key={client.id}>
+                <TableRow key={client.id} className={client.status !== "active" ? "opacity-50" : undefined}>
                   <TableCell>
                     <div>
                       <div className="font-medium">
